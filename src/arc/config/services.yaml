@@ -1,0 +1,11 @@
+services:
+
+  runtime:
+    module: arc.services.runtime.main
+    restart: always
+
+  kernel:
+    module: arc.services.kernel.main
+    restart: always
+    depends:
+      - runtime

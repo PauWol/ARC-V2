@@ -1,0 +1,38 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+
+[project]
+name = "arc-v2"
+version = "0.1.0"
+description = "A Linux-native AI system inspired by operating system architecture, built to give an intelligent agent unified access to system capabilities."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "python-dotenv>=1.2.2",
+    "pyyaml>=6.0.3",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/arc"]
+
+authors = [
+    { name = "Paul" }
+]
+
+keywords = [
+    "ai",
+    "local-ai",
+    "local-llm",
+    "operating-environment",
+    "service-orchestration",
+    "runtime",
+]
+
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Operating System :: POSIX :: Linux",
+]
