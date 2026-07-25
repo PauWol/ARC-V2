@@ -37,7 +37,27 @@ def get_env(key: str, default: T) -> str | T:
     return os.getenv(key, default)
 
 
+def get_env_str(key: str, default: str) -> str:
+    return os.getenv(key, default)
+
+
+def get_env_bool(key: str, default: str = "false") -> bool:
+    value = os.getenv(key)
+    if value is None:
+        value = default
+    return value.strip().lower() in {"1", "true", "True", "yes", "on"}
+
+
+def get_env_int(key: str, default: str) -> int:
+    value = os.getenv(key)
+    if value is None:
+        value = default
+    return int(value)
+
+
 DEFAULT_DOT_ENV = {
+    "TERMINAL_NO_COLOR": "0",
+    "PYTHONUNBUFFERED": "1",
     # ---
     "ARC_DIR": "~/arc",
     "AGENT_WORKSPACE": "~/arc/workspace",
@@ -47,48 +67,49 @@ DEFAULT_DOT_ENV = {
     # ---
     "LOG_LEVEL": "INFO",
     "LOG_FILE": "~/arc/workspace/agent.log",
-    "LOG_CONSOLE": True,
-    "LOG_JSON": False,
-    "LOG_ROTATE": True,
-    "LOG_MAX_BYTES": 10485760,
-    "LOG_BACKUP_COUNT": 2,
+    "LOG_CONSOLE": "1",
+    "LOG_JSON": "0",
+    "LOG_ROTATE": "1",
+    "LOG_MAX_BYTES": "10485760",
+    "LOG_BACKUP_COUNT": "2",
     # ---
     "SANDBOX_ALLOW": "READ,WRITE,EXECUTE,NETWORK",
     "SANDBOX_CONFIRM": "DELETE,SYSTEM,INSTALL",
     # ---
-    "EXTRACTOR_INPUT_TOKEN_THRESHOLD": 150,
+    "EXTRACTOR_INPUT_TOKEN_THRESHOLD": "150",
 }
 
 _DEV = DEFAULT_DOT_ENV
 
 # System
 SERVICES_CONFIG_PATH = Path(__file__).parent.parent / "config" / "services.arc.yaml"
+TERMINAL_NO_COLOR = get_env_bool("TERMINAL_NO_COLOR", _DEV["TERMINAL_NO_COLOR"])
 
 # Project Directories
-ARC_DIR = path(get_env("ARC_DIR", _DEV["ARC_DIR"]))  # pyright: ignore[reportArgumentType]
-AGENT_WORKSPACE = path(get_env("AGENT_WORKSPACE", _DEV["AGENT_WORKSPACE"]))  # pyright: ignore[reportArgumentType]
+ARC_DIR = path(get_env("ARC_DIR", _DEV["ARC_DIR"]))
+AGENT_WORKSPACE = path(get_env("AGENT_WORKSPACE", _DEV["AGENT_WORKSPACE"]))
 
 # LLM Model Management
-LLM_MODEL_STORE = path(get_env("LLM_MODEL_STORE", _DEV["LLM_MODEL_STORE"]))  # pyright: ignore[reportArgumentType]
-HF_TOKEN = get_env("HF_TOKEN", None)
+LLM_MODEL_STORE = path(get_env("LLM_MODEL_STORE", _DEV["LLM_MODEL_STORE"]))
+HF_TOKEN = get_env_str("HF_TOKEN", "None")
 
 
 # Logging
-LOG_LEVEL = get_env("LOG_LEVEL", _DEV["LOG_LEVEL"])
-LOG_FILE = path(get_env("LOG_FILE", _DEV["LOG_FILE"]))  # pyright: ignore[reportArgumentType]
-LOG_CONSOLE = get_env("LOG_CONSOLE", _DEV["LOG_CONSOLE"])
-LOG_JSON = get_env("LOG_JSON", _DEV["LOG_JSON"])
-LOG_ROTATE = get_env("LOG_ROTATE", _DEV["LOG_ROTATE"])
-LOG_MAX_BYTES = get_env("LOG_MAX_BYTES", _DEV["LOG_MAX_BYTES"])
-LOG_BACKUP_COUNT = get_env("LOG_BACKUP_COUNT", _DEV["LOG_BACKUP_COUNT"])
+LOG_LEVEL = get_env_str("LOG_LEVEL", _DEV["LOG_LEVEL"])
+LOG_FILE = path(get_env("LOG_FILE", _DEV["LOG_FILE"]))
+LOG_CONSOLE = get_env_bool("LOG_CONSOLE", _DEV["LOG_CONSOLE"])
+LOG_JSON = get_env_bool("LOG_JSON", _DEV["LOG_JSON"])
+LOG_ROTATE = get_env_bool("LOG_ROTATE", _DEV["LOG_ROTATE"])
+LOG_MAX_BYTES = get_env_int("LOG_MAX_BYTES", _DEV["LOG_MAX_BYTES"])
+LOG_BACKUP_COUNT = get_env_int("LOG_BACKUP_COUNT", _DEV["LOG_BACKUP_COUNT"])
 
 
 # Permissions
-SANDBOX_ALLOW = get_env("SANDBOX_ALLOW", _DEV["SANDBOX_ALLOW"])
-SANDBOX_CONFIRM = get_env("SANDBOX_CONFIRM", _DEV["SANDBOX_CONFIRM"])
+SANDBOX_ALLOW = get_env_str("SANDBOX_ALLOW", _DEV["SANDBOX_ALLOW"])
+SANDBOX_CONFIRM = get_env_str("SANDBOX_CONFIRM", _DEV["SANDBOX_CONFIRM"])
 
 # Agent Runtime
-EXTRACTOR_INPUT_TOKEN_THRESHOLD = get_env(
+EXTRACTOR_INPUT_TOKEN_THRESHOLD = get_env_int(
     "EXTRACTOR_INPUT_TOKEN_THRESHOLD", _DEV["EXTRACTOR_INPUT_TOKEN_THRESHOLD"]
 )
 

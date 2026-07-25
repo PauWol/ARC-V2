@@ -10,3 +10,11 @@ def main():
 
     if not env_loaded:
         logger.warning("ARC .env not found. Using default configuration.")
+
+    # TODO: Add Pulse startup
+
+    logger.info("Boot startup completed!")
+
+
+if __name__ == "__main__":
+    main()

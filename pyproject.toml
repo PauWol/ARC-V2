@@ -12,6 +12,7 @@ requires-python = ">=3.11"
 dependencies = [
     "python-dotenv>=1.2.2",
     "pyyaml>=6.0.3",
+    "typing-extensions>=4.16.0",
 ]
 
 [tool.hatch.build.targets.wheel]
