@@ -19,6 +19,8 @@ ServiceTree: TypeAlias = list[list[ServiceNode]]
 
 
 class ServiceState(Enum):
+    NONE = "none"
+    REGISTERED = "registered"
     CREATED = "created"
     STARTING = "starting"
     READY = "ready"
@@ -79,10 +81,15 @@ class ServiceInstance:
     pid: int | None = None
     process: subprocess.Popen[bytes] | None = None
 
-    state: ServiceState = ServiceState.CREATED
+    state: ServiceState = ServiceState.NONE
 
     started_at: datetime | None = None
 
     restart_count: int = 0
 
     last_error: str | None = None
+
+    @classmethod
+    def from_config_registry(cls, config: ServiceConfig):
+        """Create the ServiceInstance class from ServiceConfig (method intended for pulse-registry)"""
+        return cls(config, state=ServiceState.REGISTERED)

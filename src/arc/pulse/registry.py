@@ -15,5 +15,20 @@ class ServiceRegistry:
         return self._services[name]
 
     def register_tree(self, tree: ServiceTree):
-        pass
-        # TODO: Implement the make dependency tree list and the dict[str,ServiceInstance] list from tree and then some helpers
+        for _level in tree:
+            _tl: list[str] = []
+            for name, config in _level:
+                self.add(ServiceInstance.from_config_registry(config))
+
+                _tl.append(name)
+
+            self._dependency_tree.append(_tl)
+
+    def iter_startup_order(self):
+        for level in self._dependency_tree:
+            for name in level:
+                yield self.get(name)
+
+    def iter_levels(self):
+        for level in self._dependency_tree:
+            yield [self.get(name) for name in level]

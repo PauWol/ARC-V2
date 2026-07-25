@@ -36,8 +36,10 @@ class LoggingConfig:
 
 
 class BootColorFormatter(logging.Formatter):
-    def __init__(self, fmt: str, use_color: bool = True) -> None:
-        super().__init__(fmt)
+    def __init__(
+        self, fmt: str, datefmt: str | None = None, use_color: bool = True
+    ) -> None:
+        super().__init__(fmt, datefmt)
         self.use_color: bool = use_color
 
     @override
@@ -64,7 +66,7 @@ def setup_logging(cfg: LoggingConfig | None = None) -> logging.Logger:
     if logger.handlers:
         return logger
 
-    fmt = "[%(asctime)s] %(levelname)s %(name)s: %(message)s"
+    fmt = "[%(asctime)s] %(levelname)-8s %(name)-25s %(message)s"
 
     Path(cfg.file).parent.mkdir(parents=True, exist_ok=True)
 
@@ -78,12 +80,12 @@ def setup_logging(cfg: LoggingConfig | None = None) -> logging.Logger:
     else:
         fh = logging.FileHandler(cfg.file, encoding="utf-8")
 
-    fh.setFormatter(logging.Formatter(fmt))
+    fh.setFormatter(logging.Formatter(fmt, datefmt="%Y-%m-%d %H:%M:%S"))
     logger.addHandler(fh)
 
     if cfg.console:
         ch = logging.StreamHandler()
-        ch.setFormatter(BootColorFormatter(fmt, use_color=True))
+        ch.setFormatter(BootColorFormatter(fmt, datefmt="%H:%M:%S", use_color=True))
         logger.addHandler(ch)
 
     return logger

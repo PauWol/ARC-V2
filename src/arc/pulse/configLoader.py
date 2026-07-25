@@ -6,7 +6,7 @@ from pathlib import Path
 from arc.foundation.constants import SERVICES_CONFIG_PATH
 from arc.foundation.service import ServiceConfig, ServiceTree, ServiceNode
 
-logger = logging.getLogger(__file__)
+logger = logging.getLogger(__name__)
 
 
 class ConfigNotFoundError(FileNotFoundError):
