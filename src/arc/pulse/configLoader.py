@@ -27,7 +27,7 @@ class ConfigLoader:
         if not self._path.exists():
             # TODO: add auto-locate functionalities
 
-            logger.error(f"Service configuration not found: {self._path}")
+            logger.error(f"Service configuration not found should be at: {self._path}")
 
             raise ConfigNotFoundError(
                 "Could not find the 'services.arc.yaml' file.\nThis file is needed for system startup!"
@@ -47,7 +47,7 @@ class ConfigLoader:
                 name=name,  # pyright: ignore[reportAny]
                 module=cfg["module"],  # pyright: ignore[reportAny]
                 restart=cfg.get("restart", "never"),  # pyright: ignore[reportAny]
-                depends_on=cfg.get("depends_on", []),  # pyright: ignore[reportAny]
+                depends_on=cfg.get("depends", []),  # pyright: ignore[reportAny]
             )
 
         return services

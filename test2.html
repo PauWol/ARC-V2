@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus OS | System Dashboard</title>
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --bg-card: #1e293b;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-blue: #3b82f6;
+            --accent-green: #10b981;
+            --accent-orange: #f59e0b;
+            --accent-red: #ef4444;
+            --border-color: #334155;
+            --font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-family);
+            background-color: var(--bg-dark);
+            color: var(--text-primary);
+            display: flex;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 250px;
+            background-color: #0b1120;
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            transition: transform 0.3s ease;
+            position: relative;
+            z-index: 100;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--accent-blue);
+            margin-bottom: 40px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .nav-links {
+            list-style: none;
+            flex-grow: 1;
+        }
+
+        .nav-item {
+            margin-bottom: 5px;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 12px 15px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .nav-link:hover, .nav-link.active {
+            background-color: rgba(59, 130, 246, 0.1);
+            color: var(--accent-blue);
+        }
+
+        .nav-icon {
+            margin-right: 12px;
+            width: 20px;
+            height: 20px;
+            fill: currentColor;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex-grow: 1;
+            padding: 30px;
+            overflow-y: auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .header-title h1 {
+            font-size: 1.8rem;
+            margin-bottom: 5px;
+        }
+
+        .header-title p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: var(--accent-blue);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        /* Grid Layout */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        @media (max-width: 1024px) {
+            .dashboard-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 600px) {
+            body { flex-direction: column; }
+            .sidebar { width: 100%; height: auto; position: relative; border-right: none; border-bottom: 1px solid var(--border-color); }
+            .dashboard-grid { grid-template-columns: 1fr; }
+        }
+
+        /* Cards */
+        .card {
+            background-color: var(--bg-card);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid rgba(255,255,255,0.03);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        .stat-card {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            height: 150px;
+        }
+
+        .stat-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-top: auto;
+        }
+
+        .stat-trend {
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin-top: 10px;
+        }
+
+        .trend-up { color: var(--accent-green); }
+        .trend-down { color: var(--accent-red); }
+
+        /* System Info Section */
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        @media (max-width: 768px) {
+            .info-grid { grid-template-columns: 1fr; }
+        }
+
+        .info-item {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .icon-box {
+            width: 50px;
+            height: 50px;
+            border-radius: 10px;
+            background-color: rgba(59, 130, 246, 0.1);
+            color: var(--accent-blue);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .info-text h3 {
+            font-size: 1rem;
+            margin-bottom: 5px;
+        }
+
+        .info-text p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        /* Processes Table */
+        .table-container {
+            background-color: var(--bg-card);
+            border-radius: 12px;
+            padding: 20px;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            color: var(--text-secondary);
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+        }
+
+        td {
+            vertical-align: middle;
+        }
+
+        .process-name {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .status-running { background-color: rgba(16, 185, 129, 0.1); color: var(--accent-green); }
+        .status-sleeping { background-color: rgba(75, 85, 99, 0.2); color: var(--text-secondary); }
+
+        /* Animations */
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .live-indicator {
+            width: 8px;
+            height: 8px;
+            background-color: var(--accent-green);
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 6px;
+            animation: pulse 2s infinite;
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="logo">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+            Nexus OS
+        </div>
+        <ul class="nav-links">
+            <li class="nav-item"><a href="#" class="nav-link active"><span class="nav-icon">&#9881;</span> Dashboard</a></li>
+            <li class="nav-item"><a href="#" class="nav-link"><span class="nav-icon">&#128307;</span> Processes</a></li>
+            <li class="nav-item"><a href="#" class="nav-link"><span class="nav-icon">&#9889;</span> Hardware</a></li>
+            <li class="nav-item"><a href="#" class="nav-link"><span class="nav-icon">&#128274;</span> Network</a></li>
+            <li class="nav-item"><a href="#" class="nav-link"><span class="nav-icon">&#9881;</span> Settings</a></li>
+        </ul>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <header>
+            <div class="header-title">
+                <h1>System Overview</h1>
+                <p id="current-date">Loading date...</p>
+            </div>
+            <div class="user-profile">
+                <span style="color: var(--text-secondary); font-size: 0.9rem;">Admin User</span>
+                <div class="avatar">AD</div>
+            </div>
+        </header>
+
+        <!-- Top Stats Grid -->
+        <section class="dashboard-grid">
+            <div class="card stat-card">
+                <div class="stat-header">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6H6v14c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V6z"></path><path d="M12 14v8"></path></svg>
+                    CPU Usage
+                </div>
+                <div class="stat-value" id="cpu-val">--%</div>
+                <div class="stat-trend trend-up"><span class="live-indicator"></span> Live</div>
+            </div>
+
+            <div class="card stat-card">
+                <div class="stat-header">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line></svg>
+                    Memory Usage
+                </div>
+                <div class="stat-value" id="mem-val">--%</div>
+                <div class="stat-trend trend-down"><span style="color: var(--accent-green)">-2.4%</span> vs last hr</div>
+            </div>
+
+            <div class="card stat-card">
+                <div class="stat-header">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4"></path><path d="m16.2 7.8-2.8-2.8C14.5 3.8 14.4 3.7 14.2 3.7c-.4 0-.8.2-1.1.5L9 9.5"></path><path d="M6 12h4"></path><path d="m16.2 16.2-2.8 2.8c-.3.3-.7.5-1.1.5-.2 0-.3-.1-.5-.2l-4.9-4.9"></path></svg>
+                    Disk I/O
+                </div>
+                <div class="stat-value" id="disk-val">--%</div>
+                <div class="stat-trend trend-up"><span style="color: var(--accent-orange)">High Activity</span></div>
+            </div>
+
+            <div class="card stat-card">
+                <div class="stat-header">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H13a2 2 0 0 1 1.414.346l5.432 5.432A2 2 0 0 1 22 8.618V14a2 2 0 0 1-1 1.732l-6.146 6.146a2 2 0 0 1-2.828-.054L9.75 17.586V18a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-3"></path></svg>
+                    Network Traffic
+                </div>
+                <div class="stat-value" id="net-val">-- MB/s</div>
+                <div class="stat-trend trend-down"><span style="color: var(--accent-green)">Stable</span></div>
+            </div>
+        </section>
+
+        <!-- System Info Section -->
+        <section class="info-grid">
+            <div class="card info-item">
+                <div class="icon-box">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="9" y1="22" x2="15" y2="22"></line></svg>
+                </div>
+                <div class="info-text">
+                    <h3>Operating System</h3>
+                    <p id="os-name">Nexus OS 14.0 (Build 2209)</p>
+                </div>
+            </div>
+
+            <div class="card info-item">
+                <div class="icon-box">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                </div>
+                <div class="info-text">
+                    <h3>Uptime</h3>
+                    <p id="uptime-time">00:00:00</p>
+                </div>
+            </div>
+
+            <div class="card info-item">
+                <div class="icon-box" style="color: var(--accent-orange); background-color: rgba(245, 158, 11, 0.1)">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                </div>
+                <div class="info-text">
+                    <h3>CPU Model</h3>
+                    <p id="cpu-model">Intel(R) Core(TM) i7-13700H CPU @ 2.40GHz</p>
+                </div>
+            </div>
+
+            <div class="card info-item">
+                <div class="icon-box" style="color: var(--accent-blue); background-color: rgba(59, 130, 246, 0.1)">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line></svg>
+                </div>
+                <div class="info-text">
+                    <h3>RAM Model</h3>
+                    <p id="ram-model">Samsung 16GB DDR5-4800MHz</p>
+                </div>
+            </div>
+
+            <div class="card info-item">
+                <div class="icon-box" style="color: var(--accent-green); background-color: rgba(16, 185, 129, 0.1)">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20"></path><path d="m5 9 8-7 8 7"></path></svg>
+                </div>
+                <div class="info-text">
+                    <h3>Storage</h3>
+                    <p id="storage-info">SSD NVMe M.2 1TB (450GB Free)</p>
+                </div>
+            </div>
+
+            <div class="card info-item">
+                <div class="icon-box" style="color: var(--accent-red); background-color: rgba(239, 68, 68, 0.1)">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                </div>
+                <div class="info-text">
+                    <h3>GPU</h3>
+                    <p id="gpu-model">NVIDIA GeForce RTX 4080 Laptop GPU</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Processes Table -->
+        <section class="table-container">
+            <h2 style="margin-bottom: 15px; font-size: 1.2rem;">Active Processes</h2>
+            <table id="process-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>User</th>
+                        <th>CPU %</th>
+                        <th>Memory (MB)</th>
+                        <th>Status</th>
+                        <th>PID</th>
+                    </tr>
+                </thead>
+                <tbody id="process-body">
+                    <!-- Populated by JS -->
+                </tbody>
+            </table>
+        </section>
+
+    </main>
+
+    <script>
+        // --- 1. System Information Simulation ---
+        
+        const systemData = {
+            os: "Nexus OS 14.0 (Build 2209)",
+            cpuModel: "Intel(R) Core(TM) i7-13700H CPU @ 2.40GHz",
+            ramModel: "Samsung 16GB DDR5-4800MHz",
+            gpuModel: "NVIDIA GeForce RTX 4080 Laptop GPU",
+            storageTotal: "1TB SSD NVMe M.2",
+            storageFree: "450GB Free"
+        };
+
+        // --- 2. Date & Time Logic ---
+        
+        function updateDateTime() {
+            const now = new Date();
+            
+            // Update Header Date
+            const options = { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' };
+            document.getElementById('current-date').textContent = now.toLocaleDateString('en-US', options);
+
+            // Update Uptime (Simulated)
+            let uptimeSeconds = 86400 * 3 + 12 * 60 + 45; // Start with ~3 days, 12 hours
+            
+            const hrs = Math.floor(uptimeSeconds / 3600).toString().padStart(2, '0');
+            const mins = Math.floor((uptimeSeconds % 3600) / 60).toString().padStart(2, '0');
+            document.getElementById('uptime-time').textContent = `${hrs}:${mins}:00`;
+
+            // Update Uptime every minute for realism
+            setInterval(() => {
+                uptimeSeconds++;
+                const hrs = Math.floor(uptimeSeconds / 3600).toString().padStart(2, '0');
+                const mins = Math.floor((uptimeSeconds % 3600) / 60).toString().padStart(2, '0');
+                document.getElementById('uptime-time').textContent = `${hrs}:${mins}:00`;
+            }, 60000);
+
+            // Update Storage Info
+            const totalGB = systemData.storageTotal.split(' ')[1];
+            const freeGB = systemData.storageFree.split(' ')[2];
+            document.getElementById('storage-info').innerHTML = `SSD ${totalGB} (Free: <span style="color:var(--accent-green)">${freeGB}</span>)`;
+        }
+
+        // --- 3. Process Simulation ---
+
+        const processList = [
+            { name: "System Idle Process", user: "SYSTEM", cpu: 0, mem: 2, status: "Sleeping", pid: 4 },
+            { name: "explorer.exe", user: "ADMIN", cpu: 1.2, mem: 85, status: "Running", pid: 3201 },
+            { name: "chrome.exe", user: "USER", cpu: 12.5, mem: 450, status: "Running", pid: 5678 },
+            { name: "kernelbase.dll", user: "SYSTEM", cpu: 0.1, mem: 3, status: "Sleeping", pid: 999 },
+            { name: "msedge.exe", user: "USER", cpu: 4.2, mem: 620, status: "Running", pid: 5789 },
+            { name: "svchost.exe", user: "SYSTEM", cpu: 0.5, mem: 15, status: "Running", pid: 1024 },
+            { name: "notepad.exe", user: "USER", cpu: 0.8, mem: 12, status: "Sleeping", pid: 6789 },
+        ];
+
+        function renderProcesses() {
+            const tbody = document.getElementById('process-body');
+            let html = '';
+            
+            processList.forEach(proc => {
+                // Randomize CPU slightly for realism
+                const cpuVar = (Math.random() * proc.cpu * 0.5); 
+                
+                html += `
+                    <tr>
+                        <td class="process-name">
+                            ${proc.name}
+                            <span style="font-size:0.7rem; color:#64748b;">PID: ${proc.pid}</span>
+                        </td>
+                        <td>${proc.user}</td>
+                        <td>${(proc.cpu + cpuVar).toFixed(1)}%</td>
+                        <td>${Math.floor(proc.mem * (0.5 + Math.random() * 0.2))} MB</td>
+                        <td><span class="status-badge ${proc.status === 'Running' ? 'status-running' : 'status-sleeping'}">${proc.status}</span></td>
+                    </tr>
+                `;
+            });
+
+            tbody.innerHTML = html;
+        }
+
+        // --- 4. Live Metrics Simulation (CPU/Mem/Disk/Net) ---
+
+        function updateMetrics() {
+            // CPU: Random between 5% and 30%
+            const cpuVal = Math.floor(Math.random() * 26) + 5;
+            document.getElementById('cpu-val').textContent = `${cpuVal}%`;
+
+            // Memory: Random between 40% and 70%
+            const memVal = (Math.floor(Math.random() * 31) + 40).toFixed(1);
+            document.getElementById('mem-val').textContent = `${memVal}%`;
+
+            // Disk I/O: Random between 5% and 25%
+            const diskVal = Math.floor(Math.random() * 21) + 5;
+            document.getElementById('disk-val').textContent = `${diskVal}%`;
+
+            // Network: Random between 0.5 MB/s and 4.5 MB/s
+            const netVal = (Math.random() * 4).toFixed(1);
+            document.getElementById('net-val').textContent = `${netVal} MB/s`;
+        }
+
+        // --- Initialization ---
+        
+        window.addEventListener('DOMContentLoaded', () => {
+            updateDateTime();
+            renderProcesses();
+            
+            // Start live metrics loop (every 2 seconds)
+            setInterval(updateMetrics, 2000);
+            
+            // Initial CPU spike for visual effect
+            setTimeout(() => {
+                document.getElementById('cpu-val').textContent = "98%";
+                updateMetrics();
+            }, 1500);
+
+        });
+
+    </script>
+</body>
+</html>

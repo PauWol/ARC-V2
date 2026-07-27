@@ -1,9 +1,17 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-import subprocess
-from typing import TypeAlias
+from logging import Logger
+from typing import TYPE_CHECKING, TypeAlias
+
+if TYPE_CHECKING:
+    # Only needed for type checking -- avoids a hard import cycle, since
+    # service_process.py has no reason to import this module.
+    from arc.foundation.service_process import ServiceProcess
 
 
 @dataclass
@@ -26,6 +34,7 @@ class ServiceState(Enum):
     READY = "ready"
     RUNNING = "running"
     STOPPING = "stopping"
+    STOPPED = "stopped"
     FAILED = "failed"
 
 
@@ -34,6 +43,14 @@ class ServiceInfo:
     name: str
     version: str
     description: str = ""
+
+
+@dataclass(slots=True)
+class BaseContext:
+    logger: Logger
+    env: Mapping[str, str] = field(default_factory=dict)
+    service_name: str = ""
+    process_name: str = ""
 
 
 #
@@ -48,7 +65,7 @@ class Service(ABC):
         version: str,
         description: str = "",
     ) -> None:
-
+        self.ctx: BaseContext | None = None
         self._info = ServiceInfo(
             name=name,
             version=version,
@@ -59,8 +76,12 @@ class Service(ABC):
     def info(self) -> ServiceInfo:
         return self._info
 
+    async def start(self, ctx: BaseContext) -> None:
+        self.ctx = ctx
+        await self.run()
+
     @abstractmethod
-    async def start(self) -> None: ...
+    async def run(self) -> None: ...
 
     @abstractmethod
     async def stop(self) -> None: ...
@@ -79,7 +100,7 @@ class ServiceInstance:
     service: Service | None = None
 
     pid: int | None = None
-    process: subprocess.Popen[bytes] | None = None
+    process: ServiceProcess | None = None
 
     state: ServiceState = ServiceState.NONE
 

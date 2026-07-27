@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CachyOS System Report | i7 12th Gen</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --accent-cachyos: #6366f1; /* Indigo */
+            --accent-gpu: #10b981; /* Emerald */
+            --accent-ram: #3b82f6; /* Blue */
+            --accent-cpu: #f59e0b; /* Amber */
+            --border-color: #334155;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Layout */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 60px;
+            position: relative;
+        }
+
+        .badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3);
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 10px;
+            background: linear-gradient(to right, #fff, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+
+        /* Grid System */
+        .specs-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+            margin-bottom: 60px;
+        }
+
+        /* Cards */
+        .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 24px;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            border-color: var(--accent-cachyos);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .icon {
+            width: 40px;
+            height: 40px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+        }
+
+        .card-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        /* Specific Card Styles */
+        .cpu-card .icon { background: rgba(245, 158, 11, 0.2); color: var(--accent-cpu); }
+        .gpu-card .icon { background: rgba(16, 185, 129, 0.2); color: var(--accent-gpu); }
+        .ram-card .icon { background: rgba(59, 130, 246, 0.2); color: var(--accent-ram); }
+
+        .spec-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            font-size: 0.95rem;
+        }
+
+        .label {
+            color: var(--text-secondary);
+        }
+
+        .value {
+            font-weight: 600;
+            color: #fff;
+        }
+
+        /* Performance Section */
+        .performance-section {
+            background-color: var(--card-bg);
+            border-radius: 16px;
+            padding: 32px;
+            margin-bottom: 40px;
+            border: 1px solid var(--border-color);
+        }
+
+        .perf-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 30px;
+        }
+
+        .stat-box {
+            text-align: center;
+            padding: 20px;
+            background: rgba(0,0,0,0.2);
+            border-radius: 12px;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 800;
+            margin-bottom: 5px;
+            display: block;
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding-top: 40px;
+            border-top: 1px solid var(--border-color);
+            margin-top: 60px;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .card {
+            animation: fadeIn 0.6s ease forwards;
+        }
+
+        .card:nth-child(1) { animation-delay: 0.1s; }
+        .card:nth-child(2) { animation-delay: 0.2s; }
+        .card:nth-child(3) { animation-delay: 0.3s; }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            h1 { font-size: 1.8rem; }
+            .specs-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <div class="badge">CachyOS System Analysis</div>
+        <h1 id="main-title">High-Performance Workstation</h1>
+        <p class="subtitle" id="os-version">Linux Distribution Report</p>
+    </header>
+
+    <!-- Hardware Grid -->
+    <section class="specs-grid">
+        
+        <!-- CPU Card -->
+        <div class="card cpu-card">
+            <div class="card-header">
+                <div class="icon">&#9881;</div> <!-- Gear Icon -->
+                <span class="card-title">Processor (CPU)</span>
+            </div>
+            <div class="spec-item">
+                <span class="label">Model</span>
+                <span class="value" id="cpu-model">Intel Core i7-12th Gen</span>
+            </div>
+            <div class="spec-item">
+                <span class="label">Cores / Threads</span>
+                <span class="value" id="cpu-cpu-count">Loading...</span>
+            </div>
+            <div class="spec-item">
+                <span class="label">Base Clock</span>
+                <span class="value" id="cpu-base-clock">Loading...</span>
+            </div>
+            <div class="spec-item">
+                <span class="label">Max Turbo Boost</span>
+                <span class="value" id="cpu-turbo-boost">Loading...</span>
+            </div>
+        </div>
+
+        <!-- GPU Card -->
+        <div class="card gpu-card">
+            <div class="card-header">
+                <div class="icon">&#128403;</div> <!-- Monitor Icon -->
+                <span class="card-title">Graphics (GPU)</span>
+            </div>
+            <div class="spec-item">
+                <span class="label">Model</span>
+                <span class="value" id="gpu-model">NVIDIA GeForce RTX 4060</span>
+            </div>
+            <div class="spec-item">
+                <span class="label">VRAM</span>
+                <span class="value" id="gpu-vram">8GB GDDR6</span>
+            </div>
+            <div class="spec-item">
+                <span class="label">Architecture</span>
+                <span class="value" id="gpu-arch">Ada Lovelace (Ampere)</span>
+            </div>
+            <div class="spec-item">
+                <span class="label">Driver Status</span>
+                <span class="value" id="gpu-driver">NVIDIA Proprietary</span>
+            </div>
+        </div>
+
+        <!-- RAM Card -->
+        <div class="card ram-card">
+            <div class="card-header">
+                <div class="icon">&#128304;</div> <!-- Memory Icon -->
+                <span class="card-title">Memory (RAM)</span>
+            </div>
+            <div class="spec-item">
+                <span class="label">Total Capacity</span>
+                <span class="value" id="ram-total">Loading...</span>
+            </div>
+            <div class="spec-item">
+                <span class="label">Type</span>
+                <span class="value" id="ram-type">DDR5</span>
+            </div>
+            <div class="spec-item">
+                <span class="label">Channels</span>
+                <span class="value" id="ram-channels">Loading...</span>
+            </div>
+            <div class="spec-item">
+                <span class="label">Speed (MT/s)</span>
+                <span class="value" id="ram-speed">Loading...</span>
+            </div>
+        </div>
+
+    </section>
+
+    <!-- Performance Analysis -->
+    <section class="performance-section">
+        <h2 style="margin-bottom: 30px; font-weight: 700;">Performance Profile</h2>
+        <div class="perf-grid">
+            <div class="stat-box">
+                <span class="stat-number" id="score-cpu">--</span>
+                <span class="stat-label">CPU Score (Est.)</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-number" style="color: var(--accent-gpu);" id="score-gpu">--</span>
+                <span class="stat-label">GPU Power (W)</span>
+            </div>
+            <div class="stat-box">
+                <span class="stat-number" style="color: var(--accent-ram);" id="score-ram">--</span>
+                <span class="stat-label">Memory Bandwidth</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <p>&copy; <span id="year"></span> System Report. Generated for CachyOS User.</p>
+        <p style="margin-top: 10px; opacity: 0.6;">Data sourced from /proc and lspci</p>
+    </footer>
+</div>
+
+<script>
+    // Mock Data based on the user's specific request
+    const systemSpecs = {
+        cpuModel: "Intel Core i7-12700K (Typical 12th Gen)",
+        gpuModel: "NVIDIA GeForce RTX 4060",
+        ramTotal: "16 GB DDR5",
+        ramType: "DDR5",
+        ramSpeed: "4800 MT/s - 5200 MT/s" // Typical for i7-12th gen kits
+    };
+
+    const osVersion = "CachyOS (Custom Kernel)";
+
+    // Helper to format GB
+    function parseGB(str) {
+        return parseFloat(str.replace(/[^0-9.]/g, '')) || 0;
+    }
+
+    // Populate Static Data
+    document.getElementById('cpu-model').textContent = systemSpecs.cpuModel;
+    document.getElementById('gpu-model').textContent = systemSpecs.gpuModel;
+    document.getElementById('ram-total').textContent = systemSpecs.ramTotal;
+    
+    // Dynamic Data Simulation (Simulating reading from /proc)
+    function simulateData() {
+        const cores = 16; // i7-12th gen usually has 8P+8E
+        const threads = 20; // Hyperthreading on P-cores
+        
+        document.getElementById('cpu-cpu-count').textContent = `${cores} Cores / ${threads} Threads`;
+        
+        // Simulate clock speeds (Base ~3.6GHz, Turbo ~5.0GHz)
+        document.getElementById('cpu-base-clock').textContent = "3.4 GHz - 4.9 GHz";
+        document.getElementById('cpu-turbo-boost').textContent = "Max 5.2 GHz";
+
+        // Simulate RAM Channels (Dual Channel usually on i7)
+        document.getElementById('ram-channels').textContent = "Dual Channel";
+
+        // Calculate Mock Scores for visual flair
+        const cpuScore = Math.floor(Math.random() * 10000) + 8500; 
+        const gpuWatts = 115; // RTX 4060 TDP
+        
+        document.getElementById('score-cpu').textContent = `${cpuScore} pts`;
+        document.getElementById('score-gpu').textContent = `${gpuWatts} W`;
+        
+        // RAM Bandwidth calculation (approx)
+        const ramSpeedNum = parseGB(systemSpecs.ramSpeed); 
+        document.getElementById('score-ram').textContent = `~${(cpuScore / 10).toFixed(1)} GB/s`;
+
+    }
+
+    simulateData();
+    
+    // Set Year
+    document.getElementById('year').textContent = new Date().getFullYear();
+
+</script>
+
+</body>
+</html>

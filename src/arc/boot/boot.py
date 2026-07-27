@@ -6,20 +6,30 @@ from arc.foundation.logger import setup_logging
 from arc.pulse.pulse import Pulse
 
 
-async def main():
-
+async def main() -> None:
     env_loaded = load_dot_env()
-
     _ = setup_logging()
     logger = logging.getLogger("boot")
 
     if not env_loaded:
         logger.warning("ARC .env not found. Using default configuration.")
 
-    await Pulse().startup()
+    pulse = Pulse()
 
-    logger.info("Boot startup completed!")
+    try:
+        await pulse.startup()
+        logger.info("Boot startup completed!")
+        await pulse.supervise()
+
+    except asyncio.CancelledError:
+        logger.info("Shutdown requested")
+
+    finally:
+        await pulse.shutdown()
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        pass

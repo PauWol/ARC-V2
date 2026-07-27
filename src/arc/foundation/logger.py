@@ -4,7 +4,7 @@ from pathlib import Path
 
 from typing_extensions import override
 
-from src.arc.foundation.constants import (
+from arc.foundation.constants import (
     LOG_BACKUP_COUNT,
     LOG_LEVEL,
     LOG_FILE,
