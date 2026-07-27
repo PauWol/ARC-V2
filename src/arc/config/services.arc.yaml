@@ -2,7 +2,7 @@ services:
 
   runtime:
     module: arc.services.runtime.main
-    restart: always
+    restart: on-failure
 
   kernel:
     module: arc.services.kernel.main

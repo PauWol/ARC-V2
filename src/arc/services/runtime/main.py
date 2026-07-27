@@ -24,6 +24,9 @@ class RuntimeService(Service):
         while not self._stop_event.is_set():
             tick += 1
             self.ctx.logger.info("runtime tick %d", tick)
+
+            if tick == 5:
+                raise RuntimeError("Test error")
             await asyncio.sleep(2)
 
         self.ctx.logger.info("runtime service run loop ended")
