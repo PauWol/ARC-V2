@@ -1,24 +1,21 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from datetime import datetime
 
 from arc.foundation.service import ServiceInstance, ServiceState
 from arc.foundation.service_process import (
     ProcessOutcome,
     ServiceProcess,
-    resolve_entrypoint,
+    resolve_service_class,
 )
 from arc.pulse.registry import ServiceRegistry
 
+logger = logging.getLogger(__name__)
+
 
 class ServiceManager:
-    """
-    Owns lifecycle actions (start/stop/restart/kill) for services. Never
-    creates independent state of its own -- everything it mutates lives on
-    the ServiceInstance objects owned by the registry.
-    """
-
     def __init__(self, registry: ServiceRegistry) -> None:
         self._registry: ServiceRegistry = registry
 
@@ -28,14 +25,73 @@ class ServiceManager:
         service.process = None
         service.pid = None
 
-    async def start_all(self) -> None:
+    async def start_all(self, wait_on_deps: bool = True) -> None:
         for level in self._registry.iter_levels():
-            # return_exceptions=True: one service failing to start must not
-            # crash the whole startup sequence for its siblings/Pulse itself.
-            _ = await asyncio.gather(
+            results = await asyncio.gather(
                 *(self.start(service) for service in level),
                 return_exceptions=True,
             )
+
+            for service, result in zip(level, results):
+                if isinstance(result, Exception):
+                    logger.exception(
+                        "Failed to start service '%s': %s",
+                        service.config.name,
+                        result,
+                    )
+
+            if wait_on_deps:
+                results = await asyncio.gather(
+                    *(self.wait_ready(service) for service in level),
+                    return_exceptions=True,
+                )
+
+                for service, result in zip(level, results):
+                    if isinstance(result, Exception):
+                        logger.exception(
+                            "Readiness check failed for service '%s': %s",
+                            service.config.name,
+                            result,
+                        )
+
+    async def wait_ready(
+        self,
+        service: ServiceInstance,
+        timeout: float = 30.0,
+        poll_interval: float = 0.2,
+    ) -> None:
+        logger.debug(f"Waiting for {service.config.name}")
+        process = service.process
+        if process is None:
+            raise RuntimeError(
+                f"wait_ready() called for service '{service.config.name}' without a process\nCheck your 'services.arc.yaml' for false entries or, if it exists, your service '{service.config.name}' for errors."
+            )
+
+        deadline = asyncio.get_running_loop().time() + timeout
+
+        while True:
+            if not process.is_alive():
+                logger.critical(f"Process {service.config.name} died")
+                result = process.poll_result()
+                service.state = ServiceState.FAILED
+                if result is not None:
+                    service.last_error = result.traceback or result.error
+                return
+
+            status = process.status(timeout=0.5)
+            if status is not None and status.ready:
+                service.state = ServiceState.READY
+                return
+
+            if asyncio.get_running_loop().time() >= deadline:
+                logger.error(f"Process {service.config.name} timed-out")
+                service.state = ServiceState.FAILED
+                service.last_error = (
+                    f"Service '{service.config.name}' did not become ready in time"
+                )
+                return
+
+            await asyncio.sleep(poll_interval)
 
     async def stop_all(self) -> None:
         for level in self._registry.iter_levels():
@@ -48,8 +104,8 @@ class ServiceManager:
         service.state = ServiceState.STARTING
 
         try:
-            entrypoint = resolve_entrypoint(service.config.module)
-            process = ServiceProcess(service.config.name, entrypoint)
+            service_cls = resolve_service_class(service.config.module)
+            process = ServiceProcess(service.config.name, service_cls)
             process.start()
 
             service.process = process
@@ -60,10 +116,6 @@ class ServiceManager:
         except Exception as exc:
             service.state = ServiceState.FAILED
             service.last_error = str(exc)
-            # Deliberately not re-raised: start_all's gather(return_exceptions=True)
-            # would catch it anyway, but callers invoking start() directly
-            # (e.g. restart()) should also see FAILED state rather than a
-            # bare exception.
 
     async def stop(
         self,
@@ -71,7 +123,6 @@ class ServiceManager:
         timeout: float = 10.0,
     ) -> None:
         process = service.process
-
         if process is None:
             return
 
@@ -80,11 +131,7 @@ class ServiceManager:
             return
 
         service.state = ServiceState.STOPPING
-
-        # terminate() blocks (process.join under the hood), so run it off
-        # the event loop thread rather than stalling other services' stop().
         await asyncio.to_thread(process.terminate, timeout)
-
         self._clear_process(service)
         service.state = ServiceState.STOPPED
 
@@ -100,20 +147,11 @@ class ServiceManager:
 
     async def restart(self, service: ServiceInstance) -> None:
         await self.stop(service)
-
         service.restart_count += 1
-
         await self.start(service)
 
     def check(self, service: ServiceInstance) -> ProcessOutcome | None:
-        """
-        Non-blocking crash/stop detection, meant to be polled from
-        Pulse.supervise(). Returns the outcome if the child has exited since
-        the last check, otherwise None. Updates service.state/last_error on
-        a crash so the registry stays the single source of truth.
-        """
         process = service.process
-
         if process is None:
             return None
 

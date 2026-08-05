@@ -1,7 +1,8 @@
 import os
 from pathlib import Path
-from dotenv import load_dotenv
 from typing import TypeVar
+
+from dotenv import load_dotenv
 
 T = TypeVar("T")
 
@@ -45,7 +46,7 @@ def get_env_bool(key: str, default: str = "false") -> bool:
     value = os.getenv(key)
     if value is None:
         value = default
-    return value.strip().lower() in {"1", "true", "True", "yes", "on"}
+    return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
 def get_env_int(key: str, default: str) -> int:
@@ -55,9 +56,18 @@ def get_env_int(key: str, default: str) -> int:
     return int(value)
 
 
+def get_env_float(key: str, default: str) -> float:
+    value = os.getenv(key)
+    if value is None:
+        value = default
+    return float(value)
+
+
 DEFAULT_DOT_ENV = {
     "TERMINAL_NO_COLOR": "0",
     "PYTHONUNBUFFERED": "1",
+    "ARC_RUNTIME_PORT": "7842",
+    "ARC_RUNTIME_DEBUG": "1",
     # ---
     "ARC_DIR": "~/arc",
     "AGENT_WORKSPACE": "~/arc/workspace",
@@ -77,6 +87,15 @@ DEFAULT_DOT_ENV = {
     "SANDBOX_CONFIRM": "DELETE,SYSTEM,INSTALL",
     # ---
     "EXTRACTOR_INPUT_TOKEN_THRESHOLD": "150",
+    # ---
+    "ARC_RUNTIME_MODEL_PATH": "/home/paul/arc/models/unsloth__Qwen3.5-4B-GGUF/Qwen3.5-4B-Q4_K_M.gguf",
+    "ARC_RUNTIME_N_GPU_LAYERS": "auto",
+    "ARC_RUNTIME_N_THREADS": "None",
+    "ARC_RUNTIME_N_CTX": "4096",
+    "ARC_RUNTIME_N_BATCH": "256",
+    "ARC_RUNTIME_EMBEDDING_POOLING": "unspecified",
+    "ARC_RUNTIME_GEN_TIMEOUT_S": "120.0",
+    "ARC_RUNTIME_VERBOSE": "0",
 }
 
 _DEV = DEFAULT_DOT_ENV
@@ -112,6 +131,24 @@ SANDBOX_CONFIRM = get_env_str("SANDBOX_CONFIRM", _DEV["SANDBOX_CONFIRM"])
 EXTRACTOR_INPUT_TOKEN_THRESHOLD = get_env_int(
     "EXTRACTOR_INPUT_TOKEN_THRESHOLD", _DEV["EXTRACTOR_INPUT_TOKEN_THRESHOLD"]
 )
+ARC_RUNTIME_PORT = get_env_int("ARC_RUNTIME_PORT", _DEV["ARC_RUNTIME_PORT"])
+ARC_RUNTIME_DEBUG = get_env_bool("ARC_RUNTIME_DEBUG", _DEV["ARC_RUNTIME_DEBUG"])
+ARC_RUNTIME_MODEL_PATH = path(
+    get_env("ARC_RUNTIME_MODEL_PATH", _DEV["ARC_RUNTIME_MODEL_PATH"])
+)
+ARC_RUNTIME_N_GPU_LAYERS = get_env(
+    "ARC_RUNTIME_N_GPU_LAYERS", _DEV["ARC_RUNTIME_N_GPU_LAYERS"]
+)
+ARC_RUNTIME_N_THREADS = get_env("ARC_RUNTIME_N_THREADS", _DEV["ARC_RUNTIME_N_THREADS"])
+ARC_RUNTIME_N_CTX = get_env_int("ARC_RUNTIME_N_CTX", _DEV["ARC_RUNTIME_N_CTX"])
+ARC_RUNTIME_N_BATCH = get_env_int("ARC_RUNTIME_N_BATCH", _DEV["ARC_RUNTIME_N_BATCH"])
+ARC_RUNTIME_EMBEDDING_POOLING = get_env_str(
+    "ARC_RUNTIME_EMBEDDING_POOLING", _DEV["ARC_RUNTIME_EMBEDDING_POOLING"]
+)
+ARC_RUNTIME_GEN_TIMEOUT_S = get_env_float(
+    "ARC_RUNTIME_GEN_TIMEOUT_S", _DEV["ARC_RUNTIME_GEN_TIMEOUT_S"]
+)
+ARC_RUNTIME_VERBOSE = get_env_bool("ARC_RUNTIME_VERBOSE", _DEV["ARC_RUNTIME_VERBOSE"])
 
 
 def workspace_path(_path: str | None = None) -> Path:

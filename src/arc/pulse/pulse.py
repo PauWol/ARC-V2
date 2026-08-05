@@ -20,7 +20,7 @@ class Pulse:
         self._service_registry: ServiceRegistry = ServiceRegistry()
         self._service_manager: ServiceManager = ServiceManager(self._service_registry)
 
-    async def startup(self) -> None:
+    async def startup(self, wait_on_deps: bool = True) -> None:
         """Start the log relay, build the service registry, and start all services."""
         # Must start before any service is forked -- the queue it owns is
         # what gets inherited at fork time.
@@ -28,7 +28,7 @@ class Pulse:
         tree = ConfigLoader().run()
         self._service_registry.register_tree(tree)
 
-        await self._service_manager.start_all()
+        await self._service_manager.start_all(wait_on_deps)
 
     async def supervise(self, poll_interval: float = 2.0) -> None:
         """
@@ -67,3 +67,6 @@ class Pulse:
     async def shutdown(self) -> None:
         """Stop all managed services, then the log relay."""
         await self._service_manager.stop_all()
+
+
+# Todo: Make supervise use the heathy pipeline to check and log

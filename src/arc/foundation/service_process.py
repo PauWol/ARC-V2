@@ -1,30 +1,3 @@
-"""
-Fork-based process wrapper for ARC services.
-
-Why fork instead of subprocess.Popen:
-    A forked child is created via copy-on-write cloning of Pulse's own
-    memory image, not a fresh interpreter. It inherits every already-imported
-    module (all of `arc.*`, third-party deps), the parsed `.env` values, and
-    Pulse's logging configuration -- without re-importing or re-parsing any
-    of it. It's still a real, independent OS process: a crash or unhandled
-    exception in the child cannot take down Pulse.
-
-Platform note:
-    This module requires `os.fork()` and is therefore POSIX-only
-    (Linux/macOS). It will raise at import/context-creation time on Windows.
-
-The two things fork does NOT give you for free, and how this module handles
-them:
-    1. Open file descriptors get duplicated into the child (e.g. a
-       RotatingFileHandler's file handle). Two processes independently
-       rotating the same log file corrupts it. -> Children never keep
-       inherited handlers; see `_rewire_logging` and `log_relay.py`.
-    2. Forking mid-event-loop can hand the child a half-cloned event loop
-       (inherited fds, pending callbacks that belong to the parent). ->
-       Every child discards whatever loop existed at fork time and starts
-       a brand new one in `_child_main`.
-"""
-
 from __future__ import annotations
 
 import asyncio
@@ -34,7 +7,6 @@ import logging
 import multiprocessing as mp
 import os
 import traceback
-from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
@@ -44,25 +16,16 @@ from typing import TypeAlias
 
 from arc.foundation.service import BaseContext, Service
 
-# All ServiceProcess instances share one "fork" context. Using a named
-# context (rather than the bare `multiprocessing` module) makes the start
-# method explicit and avoids ever silently falling back to "spawn"/"forkserver"
-# on a platform where the default differs.
 _CTX = mp.get_context("fork")
 
-Entrypoint: TypeAlias = Callable[[BaseContext], Awaitable[None]]
-
-# Result pipe: children only ever send a ProcessResult, parents only ever
-# receive one -- typed explicitly rather than left as Connection[Any, Any].
 _ResultConn: TypeAlias = "Connection[ProcessResult, ProcessResult]"
+_ControlConn: TypeAlias = Connection
 
 
 class ProcessOutcome(str, Enum):
-    """How a child's run ended, reported back over the result pipe."""
-
-    STOPPED = "stopped"  # entrypoint's run() coroutine returned normally
-    CRASHED = "crashed"  # entrypoint raised an exception
-    CANCELLED = "cancelled"  # entrypoint was cancelled (graceful stop)
+    STOPPED = "stopped"
+    CRASHED = "crashed"
+    CANCELLED = "cancelled"
 
 
 @dataclass
@@ -72,52 +35,29 @@ class ProcessResult:
     traceback: str | None = None
 
 
-def resolve_entrypoint(
-    module_path: str,
-    attr: str | None = None,
-) -> Entrypoint:
+@dataclass(slots=True)
+class ServiceStatus:
+    ready: bool
+    ready_reason: str | None
+    healthy: bool
+    healthy_reason: str | None
+
+
+def resolve_service_class(module_path: str) -> type[Service]:
     module = importlib.import_module(module_path)
 
-    # Explicitly requested symbol
-    if attr is not None:
-        target = getattr(module, attr)
-
-        if inspect.iscoroutinefunction(target):
-            return target
-
-        if inspect.isclass(target) and issubclass(target, Service):
-            return _wrap_service_class(target)
-
-    # Automatic module-level start()
-    start = getattr(module, "start", None)
-
-    if inspect.iscoroutinefunction(start):
-        return start
-
-    # Automatic Service subclass discovery
     for target in vars(module).values():
         if (
             inspect.isclass(target)
             and issubclass(target, Service)
             and target is not Service
         ):
-            return _wrap_service_class(target)
+            return target
 
     raise TypeError(
-        f"No valid service entrypoint found in '{module_path}'. "
-        "Expected async start(ctx) or a Service subclass."
+        f"No Service subclass found in '{module_path}'. "
+        "Status probing requires a Service subclass."
     )
-
-
-def _wrap_service_class(
-    service_cls: type[Service],
-) -> Entrypoint:
-
-    async def run_service(ctx: BaseContext) -> None:
-        service = service_cls()  # pyright: ignore[reportCallIssue]
-        await service.start(ctx)
-
-    return run_service
 
 
 def _make_base_context(service_name: str) -> BaseContext:
@@ -130,18 +70,70 @@ def _make_base_context(service_name: str) -> BaseContext:
     )
 
 
-def _child_main(
-    entrypoint: Entrypoint, result_conn: _ResultConn, service_name: str
+async def _child_runtime(
+    service: Service,
+    control_conn: _ControlConn,
+    result_conn: _ResultConn,
+    ctx: BaseContext,
 ) -> None:
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
-    ctx = _make_base_context(service_name)
+    # Keep the service alive in the child while also answering status requests.
+    run_task = asyncio.create_task(service.start(ctx))
 
     try:
-        loop.run_until_complete(entrypoint(ctx))
+        while True:
+            if control_conn.poll():
+                cmd = control_conn.recv()
+
+                if cmd == "status":
+                    try:
+                        ready_ok, ready_msg = await service.ready()
+                    except BaseException as exc:
+                        control_conn.send(
+                            ServiceStatus(
+                                ready=False,
+                                ready_reason=f"ready() failed: {exc}",
+                                healthy=False,
+                                healthy_reason=None,
+                            )
+                        )
+                        continue
+
+                    try:
+                        healthy_ok, healthy_msg = await service.healthy()
+                    except BaseException as exc:
+                        control_conn.send(
+                            ServiceStatus(
+                                ready=ready_ok,
+                                ready_reason=ready_msg,
+                                healthy=False,
+                                healthy_reason=f"healthy() failed: {exc}",
+                            )
+                        )
+                        continue
+
+                    control_conn.send(
+                        ServiceStatus(
+                            ready=ready_ok,
+                            ready_reason=ready_msg,
+                            healthy=healthy_ok,
+                            healthy_reason=healthy_msg,
+                        )
+                    )
+
+                elif cmd == "stop":
+                    await service.stop()
+                    run_task.cancel()
+                    break
+
+            if run_task.done():
+                await run_task
+                break
+
+            await asyncio.sleep(0.1)
+
     except asyncio.CancelledError:
         result_conn.send(ProcessResult(ProcessOutcome.CANCELLED))
+        raise
     except BaseException as exc:
         result_conn.send(
             ProcessResult(
@@ -150,53 +142,70 @@ def _child_main(
                 traceback=traceback.format_exc(),
             )
         )
+        raise
     else:
         result_conn.send(ProcessResult(ProcessOutcome.STOPPED))
+
+
+def _child_main(
+    service_cls: type[Service],
+    control_conn: _ControlConn,
+    result_conn: _ResultConn,
+    service_name: str,
+) -> None:
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+    ctx = _make_base_context(service_name)
+    service = service_cls()  # pyright: ignore[reportCallIssue]
+
+    try:
+        loop.run_until_complete(_child_runtime(service, control_conn, result_conn, ctx))
     finally:
+        control_conn.close()
         result_conn.close()
         loop.close()
 
 
 class ServiceProcess:
-    """
-    A single crash-isolated child process running one service's entrypoint.
-
-    Lifecycle:
-        start()  -> spawn the forked child
-        is_alive() / poll_result() -> polled by the caller (Pulse.supervise)
-        terminate() / kill() -> stop it
-        close() -> release pipe file descriptors once fully done
-
-    This class only knows how to run *one* entrypoint once. Restart policy,
-    retry counting, and "what to do when it dies" all live one layer up in
-    ServiceManager -- this class's job is exactly: spawn, report outcome,
-    stop. Keeping that boundary is what makes it easy to extend later (e.g.
-    swapping the transport ServiceProcess uses for results/logs without
-    touching ServiceManager or Pulse at all).
-    """
-
-    def __init__(self, name: str, entrypoint: Entrypoint) -> None:
-        self.name: str = name
-        self._entrypoint: Entrypoint = entrypoint
+    def __init__(self, name: str, service_cls: type[Service]) -> None:
+        self.name = name
+        self._service_cls = service_cls
         self.started_at: datetime | None = None
 
-        self._result_conn: _ResultConn
-        self._child_result_conn: _ResultConn
-        self._result_conn, self._child_result_conn = _CTX.Pipe(duplex=False)  # pyright: ignore[reportAttributeAccessIssue]
+        self._result_conn, self._child_result_conn = _CTX.Pipe(duplex=False)
+        self._control_conn, self._child_control_conn = _CTX.Pipe(duplex=True)
         self._proc: BaseProcess | None = None
 
     def start(self) -> None:
         self._proc = _CTX.Process(
             target=_child_main,
-            args=(self._entrypoint, self._child_result_conn, self.name),
+            args=(
+                self._service_cls,
+                self._child_control_conn,
+                self._child_result_conn,
+                self.name,
+            ),
             name=self.name,
             daemon=False,
         )
         self._proc.start()
         self.started_at = datetime.now()
 
+        # Parent keeps only its ends.
+        self._child_control_conn.close()
+        self._child_result_conn.close()
+
+    def status(self, timeout: float = 1.0) -> ServiceStatus | None:
+        if self._proc is None or not self._proc.is_alive():
+            return None
+
+        self._control_conn.send("status")
+        if self._control_conn.poll(timeout):
+            return self._control_conn.recv()
+        return None
+
     def poll_result(self) -> ProcessResult | None:
-        """Non-blocking check for a stop/crash report from the child."""
         if self._result_conn.poll():
             return self._result_conn.recv()
         return None
@@ -213,7 +222,6 @@ class ServiceProcess:
         return self._proc.exitcode if self._proc else None
 
     def terminate(self, timeout: float = 10.0) -> None:
-        """Ask the child to stop; escalate to kill() if it misses the deadline."""
         if self._proc is None or not self._proc.is_alive():
             return
         self._proc.terminate()
@@ -228,3 +236,4 @@ class ServiceProcess:
 
     def close(self) -> None:
         self._result_conn.close()
+        self._control_conn.close()

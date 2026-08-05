@@ -86,11 +86,15 @@ class Service(ABC):
     @abstractmethod
     async def stop(self) -> None: ...
 
+    @abstractmethod
     async def healthy(self) -> tuple[bool, str | None]:
-        return True, None
+        """Return runtime health state."""
+        ...
 
+    @abstractmethod
     async def ready(self) -> tuple[bool, str | None]:
-        return True, None
+        """Return initialization readiness state."""
+        ...
 
 
 @dataclass

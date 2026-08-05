@@ -1,23 +1,29 @@
 # ARC Services
 
-An **ARC Service** is an independent capability managed by **ARC Pulse**. Each service runs in its own process and receives a `BaseContext`.
+An **ARC Service** is an independent, long-running process managed by **ARC Pulse**.
 
-ARC supports two service styles:
-
-* **Function-based** — simple services using `async def start(ctx)`
-* **Class-based** — more complex services using `Service`
+Each service runs in its own isolated operating system process and is supervised by Pulse throughout its lifecycle. Services may depend on one another, allowing Pulse to start the system in dependency order and wait until required services become **ready** before starting dependent services.
 
 ---
 
-## Service Configuration
+> [!IMPORTANT]
+> **Function-based services are no longer supported.**
+>
+> ARC previously supported services implemented as `async def start(ctx)`. This API has been removed.
+>
+> Every service must inherit from `Service`. This allows Pulse to monitor service readiness and health, supervise failures, and coordinate dependency startup.
 
-Services are defined in `services.arc.yaml`:
+---
+
+# Service Configuration
+
+Services are registered in `services.arc.yaml`.
 
 ```yaml
 services:
   runtime:
     module: arc.services.runtime.main
-    restart: always
+    restart: on-failure
 
   kernel:
     module: arc.services.kernel.main
@@ -26,37 +32,45 @@ services:
       - runtime
 ```
 
-### `module`
+## `module`
 
-Points to the Python module containing the service:
+The Python module containing the service implementation.
 
 ```yaml
 module: arc.services.runtime.main
 ```
 
-This corresponds to:
+which corresponds to
 
 ```text
 arc/services/runtime/main.py
 ```
 
-### `restart`
+Pulse automatically discovers the `Service` subclass inside the module.
 
-Controls what Pulse does when a service process exits:
+---
 
-```python
-RESTART_ALWAYS = "always"
-RESTART_ON_FAILURE = "on-failure"
-RESTART_NEVER = "never"
+## `restart`
+
+Determines how Pulse responds when a service process exits.
+
+```yaml
+restart: always
 ```
 
-* `always` — always restart the service when it exits.
-* `on-failure` — restart only if the service crashes or fails.
-* `never` — do not automatically restart the service.
+Available policies:
 
-### `depends`
+| Value        | Description                            |
+| ------------ | -------------------------------------- |
+| `always`     | Restart whenever the service exits.    |
+| `on-failure` | Restart only after a crash or failure. |
+| `never`      | Never restart automatically.           |
 
-Defines startup dependencies:
+---
+
+## `depends`
+
+Defines service startup dependencies.
 
 ```yaml
 kernel:
@@ -64,120 +78,60 @@ kernel:
     - runtime
 ```
 
-This means `runtime` must be started before `kernel`.
+Pulse guarantees that:
 
-```text
-runtime
-   │
-   ▼
-kernel
-```
+* dependencies are started first
+* dependencies become **ready**
+* only then are dependent services started
 
 Services on the same dependency level are started concurrently.
 
 ---
 
-# Function-Based Service
+# Service Lifecycle
 
-Use this for simple services that only need a single entrypoint and do not require significant internal state.
-
-```python
-# arc/services/test/main.py
-
-from __future__ import annotations
-
-import asyncio
-
-from arc.foundation.service import BaseContext
-
-
-async def start(ctx: BaseContext) -> None:
-    ctx.logger.info("Test service started")
-
-    tick = 0
-
-    try:
-        while True:
-            tick += 1
-            ctx.logger.info("Test service tick %d", tick)
-            await asyncio.sleep(2)
-
-    except asyncio.CancelledError:
-        ctx.logger.info("Test service cancelled")
-        raise
-
-    finally:
-        ctx.logger.info("Test service stopped")
-```
-
-The function:
-
-```python
-async def start(ctx: BaseContext)
-```
-
-is the service's entrypoint.
-
-ARC calls it inside the service process:
+Every service follows the same lifecycle.
 
 ```text
-ServiceProcess
-      │
-      ▼
+Process Created
+       │
+       ▼
 start(ctx)
-      │
-      ▼
-Service runs
+       │
+       ▼
+run()
+       │
+       ├────────► ready()
+       │
+       ├────────► healthy()
+       │
+       ▼
+stop()
 ```
 
-This style is ideal for small services, workers, listeners, polling loops, and test services.
+The framework provides `start()` automatically. Service implementations only define the remaining lifecycle methods.
+
+| Method      | Purpose                                             |
+| ----------- | --------------------------------------------------- |
+| `run()`     | Main service execution.                             |
+| `ready()`   | Reports whether initialization has completed.       |
+| `healthy()` | Reports whether the service is operating correctly. |
+| `stop()`    | Performs a graceful shutdown.                       |
 
 ---
 
-# Class-Based Service
+# Creating a Service
 
-Use this for services that have internal state or need a more structured lifecycle.
+Every ARC service must inherit from `Service`.
 
 ```python
-# arc/services/runtime/main.py
-
-from __future__ import annotations
-
-import asyncio
-
 from arc.foundation.service import Service
 
-
-class RuntimeService(Service):
-    def __init__(self) -> None:
-        super().__init__(
-            name="runtime",
-            version="1.0.0",
-            description="ARC runtime service",
-        )
-
-        self._stop_event = asyncio.Event()
-
-    async def run(self) -> None:
-        assert self.ctx is not None
-
-        self.ctx.logger.info("Runtime service started")
-
-        tick = 0
-
-        while not self._stop_event.is_set():
-            tick += 1
-            self.ctx.logger.info("Runtime tick %d", tick)
-            await asyncio.sleep(2)
-
-    async def stop(self) -> None:
-        assert self.ctx is not None
-
-        self.ctx.logger.info("Runtime service stopping")
-        self._stop_event.set()
+class MyService(Service):
+    ...
 ```
 
-The base `Service` handles context injection:
+The base class injects a `BaseContext` before `run()` is executed.
 
 ```python
 async def start(self, ctx: BaseContext) -> None:
@@ -185,152 +139,198 @@ async def start(self, ctx: BaseContext) -> None:
     await self.run()
 ```
 
-The flow is:
-
-```text
-ServiceProcess
-      │
-      ▼
-Service.start(ctx)
-      │
-      ├── self.ctx = ctx
-      │
-      ▼
-Service.run()
-```
-
-Use this style when the service needs state such as:
-
-```python
-self.model
-self.worker
-self.database
-self._tasks
-self._stop_event
-```
+`start()` should never be overridden.
 
 ---
 
-# `BaseContext`
+# BaseContext
 
-Every service receives a `BaseContext`:
+Every service receives a shared execution context.
 
 ```python
 @dataclass(slots=True)
 class BaseContext:
     logger: Logger
-    env: Mapping[str, str] = field(default_factory=dict)
-    service_name: str = ""
-    process_name: str = ""
+    env: Mapping[str, str]
+    service_name: str
+    process_name: str
 ```
 
-It provides common ARC infrastructure to the service.
+## `ctx.logger`
 
-### `ctx.logger`
-
-The service's logger:
+Service-specific logger managed by Pulse.
 
 ```python
-ctx.logger.info("Runtime started")
+self.ctx.logger.info("Runtime started")
 ```
 
-Services should use this instead of setting up their own logging.
+Always use this logger instead of creating your own.
 
-### `ctx.env`
+---
 
-The environment available to the service:
+## `ctx.env`
+
+Environment variables inherited from Pulse.
 
 ```python
-model_path = ctx.env.get("LLM_MODEL_STORE")
+model_path = self.ctx.env["LLM_MODEL_STORE"]
 ```
 
-Services do not need to load `.env` themselves.
+Services do not need to load `.env` files themselves.
 
-### `ctx.service_name`
+---
 
-The configured ARC service name:
+## `ctx.service_name`
 
-```python
-ctx.service_name
-```
+Configured service name.
 
-For example:
+Example:
 
 ```text
 runtime
 kernel
+vision
 ```
-
-### `ctx.process_name`
-
-The name of the process running the service, useful for diagnostics.
-
-The context's purpose is to give every service the **common infrastructure it needs** without requiring every service to initialize it independently.
 
 ---
 
-# Which Style Should I Use?
+## `ctx.process_name`
 
-### Simple service
+Operating system process name assigned by Pulse.
+
+Useful for diagnostics and debugging.
+
+---
+
+# Readiness & Health
+
+Pulse distinguishes between a running process and an operational service.
+
+A process can exist while still initializing, and a running service can later become unhealthy.
+
+## `ready()`
+
+`ready()` reports whether the service has completed initialization.
+
+Pulse waits until every dependency reports readiness before starting dependent services.
+
+Typical readiness conditions include:
+
+* model finished loading
+* HTTP server listening
+* database connected
+* worker pool initialized
+* caches populated
+
+Example:
 
 ```python
-async def start(ctx: BaseContext) -> None:
-    ...
+async def ready(self) -> tuple[bool, str | None]:
+    if self._ready:
+        return True, None
+
+    return False, "still starting"
 ```
 
-Use when the service is small and its entire behavior fits into one function.
+---
 
-### Complex service
+## `healthy()`
+
+`healthy()` reports whether the service is functioning correctly.
+
+Unlike `ready()`, this represents runtime health rather than startup progress.
+
+Typical health failures include:
+
+* disconnected database
+* failed worker thread
+* unloaded model
+* unrecoverable internal error
+
+Example:
 
 ```python
-class RuntimeService(Service):
+async def healthy(self) -> tuple[bool, str | None]:
+    if self._stop_event.is_set():
+        return False, "service is stopping"
+
+    return True, None
+```
+
+---
+
+# Complete Example
+
+```python
+from __future__ import annotations
+
+import asyncio
+
+from arc.foundation.service import Service
+
+
+class TestService(Service):
+    def __init__(self) -> None:
+        super().__init__(
+            name="test",
+            version="0.1.0",
+            description="A simple Pulse test service",
+        )
+
+        self._stop_event = asyncio.Event()
+        self._ready = False
+        self._ticks = 0
+
     async def run(self) -> None:
-        ...
+        assert self.ctx is not None
+
+        self.ctx.logger.info("Test service started")
+
+        # Simulate startup work.
+        await asyncio.sleep(1)
+
+        self._ready = True
+        self.ctx.logger.info("Test service ready")
+
+        try:
+            while not self._stop_event.is_set():
+                self._ticks += 1
+                self.ctx.logger.info("Tick %d", self._ticks)
+                await asyncio.sleep(2)
+
+        except asyncio.CancelledError:
+            raise
+
+        finally:
+            self.ctx.logger.info("Test service stopped")
 
     async def stop(self) -> None:
-        ...
+        self._stop_event.set()
+
+    async def ready(self) -> tuple[bool, str | None]:
+        if self._ready:
+            return True, None
+
+        return False, "still starting"
+
+    async def healthy(self) -> tuple[bool, str | None]:
+        if self._stop_event.is_set():
+            return False, "service is stopping"
+
+        return True, None
 ```
-
-Use when the service has state or needs a structured lifecycle.
-
-Both styles are valid and are executed by the same `ServiceProcess` infrastructure.
 
 ---
 
-## Current Lifecycle Status
+# Best Practices
 
-The `Service` base class already defines functionality for:
-
-```python
-start()
-run()
-stop()
-healthy()
-ready()
-```
-
-However, **currently only the start/run path is actively used**.
-
-`healthy()` and `ready()` are planned for future health and readiness monitoring but are **not implemented into Pulse's supervision logic yet**.
-
-The planned distinction is:
-
-```text
-Process is running
-       ≠
-Service is ready
-       ≠
-Service is healthy
-```
-
-This will eventually allow dependencies such as:
-
-```text
-runtime
-   │
-   │ ready
-   ▼
-kernel
-```
-
-rather than starting `kernel` merely because the `runtime` process exists.
+* Inherit from `Service` for every service implementation.
+* Keep `run()` alive until shutdown.
+* Store long-lived resources as instance attributes.
+* Use `ready()` only to report startup completion.
+* Use `healthy()` only to report runtime health.
+* Keep `ready()` and `healthy()` lightweight; Pulse may poll them frequently.
+* Use `ctx.logger` for all logging.
+* Release resources gracefully in `stop()`.
+* Avoid blocking the event loop during normal operation.
+* Design services to be independent and restartable.
