@@ -27,12 +27,30 @@ You have access to the following tools. Call them by responding with
 {%- endif %}
 {%- for message in messages %}
 <|im_start|>{{ message.role }}
-{{ message.content }}<|im_end|>
+{%- if message.tool_calls %}
+{%- for tc in message.tool_calls %}
+<tool_call>{{ {"name": tc.function.name, "arguments": tc.function.arguments} | tojson }}</tool_call>
+{%- endfor %}
+{%- elif message.role == "tool" %}
+<tool_response tool_call_id="{{ message.tool_call_id }}">
+{{ message.content }}
+</tool_response>
+{%- else %}
+{{ message.content }}
+{%- endif %}
+<|im_end|>
 {%- endfor %}
 {%- if add_generation_prompt %}
 <|im_start|>assistant
 {%- endif %}
 """
+
+
+def _safe_json_loads(s: str) -> Any:
+    try:
+        return json.loads(s)
+    except (json.JSONDecodeError, TypeError):
+        return s  # leave as-is if it wasn't actually JSON
 
 
 def _raise_exception(message: str):
@@ -69,15 +87,31 @@ class ChatTemplateRenderer:
         tools: list[Tool] | None = None,
         add_generation_prompt: bool = True,
     ) -> str:
-        rendered_messages: list[dict[str, Any]] = [
-            {
+        rendered_messages: list[dict[str, Any]] = []
+        for m in messages:
+            msg: dict[str, Any] = {
                 "role": m.role,
                 "content": m.content or "",
                 "name": m.name,
                 "tool_call_id": m.tool_call_id,
             }
-            for m in messages
-        ]
+            if m.tool_calls:
+                msg["tool_calls"] = [
+                    {
+                        "id": tc.id,
+                        "type": tc.type,
+                        "function": {
+                            "name": tc.function.name,
+                            # templates generally expect arguments as an
+                            # object (for tojson), not the OpenAI-wire
+                            # JSON-string encoding — undo that encoding here.
+                            "arguments": _safe_json_loads(tc.function.arguments),
+                        },
+                    }
+                    for tc in m.tool_calls
+                ]
+            rendered_messages.append(msg)
+
         rendered_tools = None
         if tools:
             rendered_tools = [

@@ -13,7 +13,7 @@ import os
 import platform
 import shutil
 import subprocess
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import gguf
@@ -39,7 +39,6 @@ def _free_vram_mb() -> int | None:
             ["nvidia-smi", "--query-gpu=memory.free", "--format=csv,noheader,nounits"],
             timeout=5,
         )
-        # If multiple GPUs, take the one with the most free memory.
         values = [int(x.strip()) for x in out.decode().splitlines() if x.strip()]
         return max(values) if values else None
     except (subprocess.SubprocessError, ValueError, OSError):
@@ -47,14 +46,7 @@ def _free_vram_mb() -> int | None:
 
 
 def _gguf_layer_estimate(model_path: Path) -> tuple[int | None, float | None]:
-    """Return (n_layers, bytes_per_layer_estimate) read cheaply from GGUF metadata.
-
-    Uses the `gguf` package to read only the header/metadata, not the tensors,
-    so this is fast even for large models. Falls back to (None, None) if the
-    `gguf` package isn't installed or the file can't be parsed — callers must
-    handle that by falling back to a conservative default.
-    """
-
+    """Return (n_layers, bytes_per_layer_estimate) read cheaply from GGUF metadata."""
     try:
         reader = gguf.GGUFReader(model_path)
         n_layers = None
@@ -69,9 +61,6 @@ def _gguf_layer_estimate(model_path: Path) -> tuple[int | None, float | None]:
             return None, None
 
         file_size = os.path.getsize(model_path)
-        # Rough split: embeddings/output head are a small, roughly fixed slice;
-        # the remainder is divided evenly across transformer blocks. This is a
-        # heuristic, not an exact accounting of tensor sizes per layer.
         non_layer_fraction = 0.10
         bytes_per_layer = (file_size * (1 - non_layer_fraction)) / n_layers
         return n_layers, bytes_per_layer
@@ -80,17 +69,9 @@ def _gguf_layer_estimate(model_path: Path) -> tuple[int | None, float | None]:
 
 
 def _auto_gpu_layers(model_path: Path) -> int:
-    """Decide how many layers to offload to GPU.
-
-    - Apple Silicon (Metal): offload everything; unified memory + the Metal
-      backend handle this well, and llama.cpp's own paging manages the rest.
-    - NVIDIA GPU present: estimate how many transformer layers fit in free
-      VRAM (leaving ~15% headroom for KV cache + activations) using GGUF
-      metadata. Falls back to 0 (CPU-only) if estimation isn't possible.
-    - No GPU detected: 0 (CPU-only).
-    """
+    """Decide how many layers to offload to GPU."""
     if platform.system() == "Darwin" and platform.machine() == "arm64":
-        return -1  # llama-cpp-python: offload all layers
+        return -1
 
     free_mb = _free_vram_mb()
     if free_mb is None:
@@ -98,7 +79,6 @@ def _auto_gpu_layers(model_path: Path) -> int:
 
     n_layers, bytes_per_layer = _gguf_layer_estimate(model_path)
     if not n_layers or not bytes_per_layer:
-        # Can't estimate — be conservative rather than risk an OOM crash mid-load.
         return 0
 
     usable_bytes = free_mb * 1024 * 1024 * 0.85
@@ -110,20 +90,47 @@ def _auto_gpu_layers(model_path: Path) -> int:
 class EngineConfig:
     model_path: Path
     n_ctx: int = 4096
-    n_threads: int | None = None  # None -> llama.cpp picks os.cpu_count()-based default
+    n_threads: int | None = None
     n_batch: int = 256
     n_gpu_layers: int = 0
-    embedding_pooling: str = (
-        "unspecified"  # mean | cls | last, passed to embedding context
-    )
+    embedding_pooling: str = "unspecified"
     generation_timeout_s: float = 120.0
     verbose: bool = False
 
-    # Qwen3-style tags (see parsing.py); overridable for other model families later.
+    # -- chat generation (raw completion + our own tag parsing) --------------
+    #
+    # We deliberately do NOT set llama-cpp-python's `chat_format` on the
+    # Llama() instance anymore. Chat generation goes through the raw
+    # completion API (Llama.__call__) against a prompt we render ourselves
+    # via templating.ChatTemplateRenderer (using the GGUF's own embedded
+    # tokenizer.chat_template), and we parse tool calls out of the token
+    # stream via AgenticStreamParser. This sidesteps llama-cpp-python's
+    # `chatml-function-calling` handler entirely, which is what raises
+    # "Automatic streaming tool choice is not supported" — see
+    # agentic_parsing.py's module docstring for the full story. It also
+    # means no grammar-constrained decoding overhead unless you opt into
+    # it yourself.
     think_open: str = "<think>"
     think_close: str = "</think>"
     tool_call_open: str = "<tool_call>"
     tool_call_close: str = "</tool_call>"
+
+    # Which inner tool-call body format to parse. "json" expects
+    # {"name": ..., "arguments": {...}} inside the <tool_call> tags
+    # (Hermes/most ChatML-family models). "xml_function_parameter" expects
+    # <function=name><parameter=key>value</parameter></function> instead --
+    # this is the Qwen3-Coder / Qwen3.5+ *native* format, and is what these
+    # GGUFs have actually been observed to emit (their embedded
+    # tokenizer.chat_template instructs the model to use it, not JSON) --
+    # see agentic_parsing.py's module docstring for both formats in full.
+    tool_call_dialect: str = "xml_function_parameter"
+
+    # Extra stop strings appended on top of whatever the request specifies.
+    # The model's real EOS token already stops generation on its own
+    # (llama.cpp handles that internally); this is a safety net for chat
+    # templates whose turn-end marker (e.g. Qwen/ChatML's <|im_end|>)
+    # isn't registered as the GGUF's primary EOS token id.
+    stop_sequences: list[str] = field(default_factory=lambda: ["<|im_end|>"])
 
     @classmethod
     def from_env(cls) -> "EngineConfig":
@@ -144,6 +151,9 @@ class EngineConfig:
         n_threads_env = ARC_RUNTIME_N_THREADS
         n_threads = int(n_threads_env) if n_threads_env != "None" else None
 
+        stop_env = os.getenv("ARC_RUNTIME_STOP_SEQUENCES", "<|im_end|>")
+        stop_sequences = [s for s in stop_env.split(",") if s.strip()]
+
         return cls(
             model_path=model_path,
             n_ctx=ARC_RUNTIME_N_CTX,
@@ -153,4 +163,10 @@ class EngineConfig:
             embedding_pooling=ARC_RUNTIME_EMBEDDING_POOLING,
             generation_timeout_s=ARC_RUNTIME_GEN_TIMEOUT_S,
             verbose=ARC_RUNTIME_VERBOSE,
+            tool_call_open=os.getenv("ARC_RUNTIME_TOOL_CALL_OPEN", "<tool_call>"),
+            tool_call_close=os.getenv("ARC_RUNTIME_TOOL_CALL_CLOSE", "</tool_call>"),
+            tool_call_dialect=os.getenv(
+                "ARC_RUNTIME_TOOL_CALL_DIALECT", "xml_function_parameter"
+            ),
+            stop_sequences=stop_sequences,
         )

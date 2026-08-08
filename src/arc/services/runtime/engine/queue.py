@@ -1,20 +1,11 @@
-"""Serializes all inference calls through one worker, with per-request cancel.
-
-llama.cpp isn't safe (or efficient, on modest hardware) to hit concurrently
-from one context. Every request — chat, completion, embedding — goes through
-this single-worker queue. Each job runs its blocking llama-cpp-python call in
-a background thread; tokens are pushed back to the asyncio side as they're
-produced, and a threading.Event lets the async layer cancel a running job
-(client disconnect, timeout) without waiting for it to finish generating.
-"""
-
 from __future__ import annotations
 
 import asyncio
 import threading
 import uuid
+from collections.abc import AsyncIterator, Callable, Iterator
 from dataclasses import dataclass, field
-from typing import Any, AsyncIterator, Callable, Iterator
+from typing import Any
 
 
 class CancelledByClient(Exception):
@@ -25,7 +16,7 @@ class CancelledByClient(Exception):
 class _Job:
     id: str
     fn: Callable[[threading.Event], Iterator[Any]]
-    out_queue: asyncio.Queue
+    out_queue: asyncio.Queue  # pyright: ignore[reportMissingTypeArgument]
     cancel_event: threading.Event = field(default_factory=threading.Event)
     loop: asyncio.AbstractEventLoop | None = None
 
@@ -38,7 +29,7 @@ class RequestQueue:
 
     def __init__(self) -> None:
         self._queue: asyncio.Queue[_Job] = asyncio.Queue()
-        self._worker_task: asyncio.Task | None = None
+        self._worker_task: asyncio.Task | None = None  # pyright: ignore[reportMissingTypeArgument]
         self._jobs: dict[str, _Job] = {}
 
     def start(self) -> None:
@@ -60,7 +51,12 @@ class RequestQueue:
         Yields chunks as they arrive. Raises asyncio.TimeoutError if timeout_s
         elapses with the job still running (the underlying job is cancelled).
         """
-        job = _Job(id=str(uuid.uuid4()), fn=fn, out_queue=asyncio.Queue(), loop=asyncio.get_running_loop())
+        job = _Job(
+            id=str(uuid.uuid4()),
+            fn=fn,
+            out_queue=asyncio.Queue(),
+            loop=asyncio.get_running_loop(),
+        )
         self._jobs[job.id] = job
         await self._queue.put(job)
 

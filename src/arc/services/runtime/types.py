@@ -25,6 +25,26 @@ class ToolCall(BaseModel):
     function: ToolCallFunction
 
 
+class ToolCallFunctionDelta(BaseModel):
+    """Partial function info as it streams in. Only `name` (usually the
+    first chunk) or an `arguments` fragment (subsequent chunks) may be set."""
+
+    name: str | None = None
+    arguments: str | None = None  # incremental JSON fragment, not full JSON
+
+
+class ToolCallDelta(BaseModel):
+    """A partial tool call as it streams. `id`/`function.name` typically
+    appear once (first chunk for this index); `function.arguments` arrives
+    in fragments across multiple chunks and must be concatenated by index
+    to reconstruct the full JSON-encoded arguments string."""
+
+    index: int = 0
+    id: str | None = None
+    type: Literal["function"] | None = None
+    function: ToolCallFunctionDelta | None = None
+
+
 class ChatMessage(BaseModel):
     role: Literal["system", "user", "assistant", "tool"]
     content: str | None = None
@@ -40,23 +60,10 @@ class ChatMessage(BaseModel):
 class GenerationRequest(BaseModel):
     stream: bool = True
 
-    max_output_tokens: int | None = Field(
-        default=None,
-        ge=1,
-    )
-    temperature: float | None = Field(
-        default=None,
-        ge=0.0,
-    )
-    top_p: float | None = Field(
-        default=None,
-        gt=0.0,
-        le=1.0,
-    )
-    top_k: int | None = Field(
-        default=None,
-        ge=1,
-    )
+    max_output_tokens: int | None = Field(default=None, ge=1)
+    temperature: float | None = Field(default=None, ge=0.0)
+    top_p: float | None = Field(default=None, gt=0.0, le=1.0)
+    top_k: int | None = Field(default=None, ge=1)
 
     stop: list[str] = Field(default_factory=list)
 
@@ -104,7 +111,7 @@ class ChatCompletionChunkDelta(BaseModel):
     role: Literal["assistant"] | None = None
     content: str | None = None
     reasoning_content: str | None = None
-    tool_calls: list[ToolCall] | None = None
+    tool_calls: list[ToolCallDelta] | None = None
 
 
 class ChatCompletionChunkChoice(BaseModel):

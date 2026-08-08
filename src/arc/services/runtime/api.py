@@ -6,8 +6,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import StreamingResponse
 
 from arc.foundation.constants import ARC_RUNTIME_DEBUG
-from arc.services.runtime.engine.engine import LlamaEngine
-from arc.services.runtime.engine.parsing import ParsedEvent
+from arc.services.runtime.engine.engine import GenerationChunk, LlamaEngine
 from arc.services.runtime.types import (
     ChatCompletionChoice,
     ChatCompletionChunk,
@@ -22,7 +21,9 @@ from arc.services.runtime.types import (
     EmbeddingResponse,
     ModelInfo,
     ToolCall,
+    ToolCallDelta,
     ToolCallFunction,
+    ToolCallFunctionDelta,
 )
 
 app = FastAPI(debug=ARC_RUNTIME_DEBUG)
@@ -45,37 +46,53 @@ def _new_id(prefix: str) -> str:
     return f"{prefix}-{uuid.uuid4().hex}"
 
 
-# -- accumulation helpers: turn a stream of ParsedEvents into a final ChatMessage --
+# -- accumulation helpers: turn a stream of GenerationChunks into a final ChatMessage --
 
 
 class _Accumulator:
     def __init__(self) -> None:
         self.content_parts: list[str] = []
         self.reasoning_parts: list[str] = []
-        self.tool_calls: list[ToolCall] = []
+        # Tool call fragments are keyed by stream index and merged here;
+        # `arguments` accumulates fragments in arrival order to reconstruct
+        # the full JSON-encoded arguments string.
+        self._tool_calls: dict[int, dict] = {}
 
-    def add(self, event: ParsedEvent) -> None:
-        if event.kind == "content" and event.text:
-            self.content_parts.append(event.text)
-        elif event.kind == "reasoning" and event.text:
-            self.reasoning_parts.append(event.text)
-        elif event.kind == "tool_call":
-            self.tool_calls.append(
-                ToolCall(
-                    id=_new_id("call"),
-                    function=ToolCallFunction(
-                        name=event.tool_name or "",
-                        arguments=json.dumps(event.tool_arguments or {}),
-                    ),
-                )
+    def add(self, chunk: GenerationChunk) -> None:
+        if chunk.event is not None:
+            if chunk.event.kind == "content" and chunk.event.text:
+                self.content_parts.append(chunk.event.text)
+            elif chunk.event.kind == "reasoning" and chunk.event.text:
+                self.reasoning_parts.append(chunk.event.text)
+        if chunk.tool_call is not None:
+            tc = chunk.tool_call
+            entry = self._tool_calls.setdefault(
+                tc.index, {"id": None, "name": None, "arguments": ""}
             )
+            if tc.id:
+                entry["id"] = tc.id
+            if tc.name:
+                entry["name"] = tc.name
+            entry["arguments"] += tc.arguments_fragment or ""
 
     def to_message(self) -> ChatMessage:
+        tool_calls = None
+        if self._tool_calls:
+            tool_calls = [
+                ToolCall(
+                    id=entry["id"] or _new_id("call"),
+                    function=ToolCallFunction(
+                        name=entry["name"] or "",
+                        arguments=entry["arguments"] or "{}",
+                    ),
+                )
+                for _, entry in sorted(self._tool_calls.items())
+            ]
         return ChatMessage(
             role="assistant",
             content="".join(self.content_parts) or None,
             reasoning_content="".join(self.reasoning_parts) or None,
-            tool_calls=self.tool_calls or None,
+            tool_calls=tool_calls,
         )
 
 
@@ -93,17 +110,21 @@ async def chat_completions(req: ChatRequest, request: Request):
         async def event_stream():
             async for chunk in engine.generate_chat(req):
                 delta = ChatCompletionChunkDelta()
-                if chunk.event.kind == "content" and chunk.event.text:
-                    delta.content = chunk.event.text
-                elif chunk.event.kind == "reasoning" and chunk.event.text:
-                    delta.reasoning_content = chunk.event.text
-                elif chunk.event.kind == "tool_call":
+                if chunk.event is not None:
+                    if chunk.event.kind == "content" and chunk.event.text:
+                        delta.content = chunk.event.text
+                    elif chunk.event.kind == "reasoning" and chunk.event.text:
+                        delta.reasoning_content = chunk.event.text
+                if chunk.tool_call is not None:
+                    tc = chunk.tool_call
                     delta.tool_calls = [
-                        ToolCall(
-                            id=_new_id("call"),
-                            function=ToolCallFunction(
-                                name=chunk.event.tool_name or "",
-                                arguments=json.dumps(chunk.event.tool_arguments or {}),
+                        ToolCallDelta(
+                            index=tc.index,
+                            id=tc.id,
+                            type="function" if (tc.id or tc.name) else None,
+                            function=ToolCallFunctionDelta(
+                                name=tc.name,
+                                arguments=tc.arguments_fragment or None,
                             ),
                         )
                     ]
@@ -126,7 +147,7 @@ async def chat_completions(req: ChatRequest, request: Request):
     acc = _Accumulator()
     finish_reason = None
     async for chunk in engine.generate_chat(req):
-        acc.add(chunk.event)
+        acc.add(chunk)
         if chunk.finish_reason:
             finish_reason = chunk.finish_reason
 
@@ -150,7 +171,7 @@ async def completions(req: CompletionRequest, request: Request):
 
         async def event_stream():
             async for chunk in engine.generate_completion(req):
-                if chunk.event.kind != "content":
+                if chunk.event is None or chunk.event.kind != "content":
                     continue  # raw /completions has no reasoning/tool-call channel
                 payload = {
                     "id": completion_id,
@@ -173,7 +194,7 @@ async def completions(req: CompletionRequest, request: Request):
     text_parts: list[str] = []
     finish_reason = None
     async for chunk in engine.generate_completion(req):
-        if chunk.event.kind == "content":
+        if chunk.event is not None and chunk.event.kind == "content":
             text_parts.append(chunk.event.text)
         if chunk.finish_reason:
             finish_reason = chunk.finish_reason
