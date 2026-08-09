@@ -81,20 +81,22 @@ class Service(ABC):
         await self.run()
 
     @abstractmethod
-    async def run(self) -> None: ...
+    async def run(self) -> None:
+        raise NotImplementedError
 
     @abstractmethod
-    async def stop(self) -> None: ...
+    async def stop(self) -> None:
+        raise NotImplementedError
 
     @abstractmethod
     async def healthy(self) -> tuple[bool, str | None]:
         """Return runtime health state."""
-        ...
+        raise NotImplementedError
 
     @abstractmethod
     async def ready(self) -> tuple[bool, str | None]:
         """Return initialization readiness state."""
-        ...
+        raise NotImplementedError
 
 
 @dataclass
