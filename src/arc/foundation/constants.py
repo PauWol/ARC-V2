@@ -63,6 +63,23 @@ def get_env_float(key: str, default: str) -> float:
     return float(value)
 
 
+def set_env(key: str, value: T):  # pyright: ignore[reportInvalidTypeVarUse]
+    _path = ENV_PATH
+    _updated = False
+
+    lines = _path.read_text("utf-8").splitlines()
+
+    for i, l in enumerate(lines):
+        if l.startswith(f"{key}="):
+            lines[i] = f"{key}={value}"
+            _updated = True
+
+    if not _updated:
+        lines.append(f"{key}={value}")
+
+    _ = _path.write_text("\n".join(lines) + "\n")
+
+
 DEFAULT_DOT_ENV = {
     "TERMINAL_NO_COLOR": "0",
     "PYTHONUNBUFFERED": "1",
@@ -96,6 +113,9 @@ DEFAULT_DOT_ENV = {
     "ARC_RUNTIME_EMBEDDING_POOLING": "unspecified",
     "ARC_RUNTIME_GEN_TIMEOUT_S": "120.0",
     "ARC_RUNTIME_VERBOSE": "0",
+    # ---
+    "TELEGRAM_ENABLED": "0",
+    "TELEGRAM_BOT_TOKEN": "YOUR-BOT-TOKEN",
 }
 
 _DEV = DEFAULT_DOT_ENV
@@ -110,7 +130,7 @@ AGENT_WORKSPACE = path(get_env("AGENT_WORKSPACE", _DEV["AGENT_WORKSPACE"]))
 
 # LLM Model Management
 LLM_MODEL_STORE = path(get_env("LLM_MODEL_STORE", _DEV["LLM_MODEL_STORE"]))
-HF_TOKEN = get_env_str("HF_TOKEN", "None")
+HF_TOKEN = get_env_str("HF_TOKEN", _DEV["HF_TOKEN"])
 
 
 # Logging
@@ -149,6 +169,10 @@ ARC_RUNTIME_GEN_TIMEOUT_S = get_env_float(
     "ARC_RUNTIME_GEN_TIMEOUT_S", _DEV["ARC_RUNTIME_GEN_TIMEOUT_S"]
 )
 ARC_RUNTIME_VERBOSE = get_env_bool("ARC_RUNTIME_VERBOSE", _DEV["ARC_RUNTIME_VERBOSE"])
+
+# Telegram
+TELEGRAM_ENABLED = get_env_bool("TELEGRAM_ENABLED", _DEV["TELEGRAM_ENABLED"])
+TELEGRAM_BOT_TOKEN = get_env_str("TELEGRAM_BOT_TOKEN", _DEV["TELEGRAM_BOT_TOKEN"])
 
 
 def workspace_path(_path: str | None = None) -> Path:
