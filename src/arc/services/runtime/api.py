@@ -7,7 +7,7 @@ from fastapi.responses import StreamingResponse
 
 from arc.foundation.constants import ARC_RUNTIME_DEBUG
 from arc.services.runtime.engine.engine import GenerationChunk, LlamaEngine
-from arc.services.runtime.types import (
+from src.arc.services.runtime.shared.types import (
     ChatCompletionChoice,
     ChatCompletionChunk,
     ChatCompletionChunkChoice,

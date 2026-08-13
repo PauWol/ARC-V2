@@ -31,6 +31,10 @@ def load_dot_env() -> bool:
     )
 
 
+# IMPORTANT: load before evaluating configuration constants
+ENV_LOADED = load_dot_env()
+
+
 def get_env(key: str, default: T) -> str | T:
     """
     Return an environment variable or a default value.

@@ -24,6 +24,7 @@ class RuntimeService(Service):
         self.ctx.logger.info("Loading runtime...")
 
         config = EngineConfig.from_env()
+        self.ctx.logger.debug(f"Engine-config: {config}")
         self.ctx.logger.info("Config ready")
 
         self._engine = LlamaEngine(config)

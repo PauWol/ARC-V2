@@ -20,9 +20,7 @@ from typing import Any, Optional
 
 from arc.services.kernel.config import CONFIG
 from arc.services.kernel.events import EventQueue, WakeEvent, Priority
-from arc.services.kernel.model_client import ModelRouter
 from arc.services.kernel.state import StateStore
-from arc.services.kernel.triage import triage, TriageDecision
 from arc.services.kernel.actions import ActionRegistry
 from arc.services.kernel.dream import run_dream_cycle
 
@@ -50,17 +48,15 @@ If nothing needs to happen, use action "noop" and an empty "say".
 """
 
 
-class AgentLoop:
+class Agent:
     def __init__(
         self,
         queue: EventQueue,
         state: StateStore,
-        router: ModelRouter,
         actions: ActionRegistry,
     ) -> None:
         self.queue = queue
         self.state = state
-        self.router = router
         self.actions = actions
         self._last_dream_at = datetime.utcnow() - timedelta(days=1)
         self._shutdown = asyncio.Event()
@@ -97,27 +93,9 @@ class AgentLoop:
             await self._run_dream(event)
             return
 
-        recent = self._recent_context_text(limit=10)
-        decision = await triage(self.router, event, recent)
-        log.info(
-            "Triage decision for '%s': %s (%s)",
-            event.reason,
-            decision.action,
-            decision.rationale,
-        )
+        await self._respond(event)
 
-        if decision.action == "ignore":
-            self.state.log_episode(
-                source="wakeup", content="(triaged: ignore)", reason=event.reason
-            )
-            return
-
-        tier = "big" if decision.action == "escalate_big" else "main"
-        is_autonomous = event.priority != Priority.USER_LIVE
-
-        await self._respond(event, tier=tier, is_autonomous=is_autonomous)
-
-    async def _respond(self, event: WakeEvent, tier: str, is_autonomous: bool) -> None:
+    async def _respond(self, event: WakeEvent) -> None:
         persona = self.state.current_persona()
         facts_text = self._facts_context_text()
         system_prompt = MAIN_SYSTEM_TEMPLATE.format(
@@ -141,7 +119,6 @@ class AgentLoop:
             {"role": "user", "content": user_message},
         ]
 
-        client = self.router.get(tier)
         resp = await client.chat(
             messages,
             temperature=0.6,

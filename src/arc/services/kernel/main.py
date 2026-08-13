@@ -1,18 +1,3 @@
-"""
-KernelService: the Pulse-managed process that owns the agent loop
-(AgentLoop, formerly the standalone `Kernel` class), the wakeup sources
-(cron/random/dream), state, model router, actions, and optionally the
-Telegram interface.
-
-Depends on `runtime` in services.arc.yaml — Pulse won't start this
-until RuntimeService reports ready, so the agent loop never comes up
-racing against a not-yet-reachable inference backend.
-
-Everything that used to live in a standalone `main()` + `asyncio.run()`
-script now lives in `run()`, and shutdown that used to be "whatever
-happens when the process gets killed" is now `stop()`, called by Pulse.
-"""
-
 from __future__ import annotations
 
 import asyncio
@@ -20,10 +5,9 @@ import asyncio
 from arc.foundation.service import Service
 
 from arc.services.kernel.actions import build_default_registry
-from arc.services.kernel.agent_loop import AgentLoop
+from arc.services.kernel.agent.agent import AgentLoop
 from arc.services.kernel.config import CONFIG, configure_from_env
 from arc.services.kernel.events import EventQueue
-from arc.services.kernel.model_client import ModelRouter
 from arc.services.kernel.sources import CronSource, DreamScheduler, RandomSource
 from arc.services.kernel.state import StateStore
 from arc.services.kernel.telegram_interface import TelegramInterface
@@ -36,11 +20,12 @@ class KernelService(Service):
             version="0.1.0",
             description="Arc-v2 agent loop: wakeups, state, dreaming, delivery",
         )
+
         self._stop_event = asyncio.Event()
         self._ready = False
+
         self._tasks: dict[str, asyncio.Task] = {}
         self._telegram: TelegramInterface | None = None
-        self._router: ModelRouter | None = None
         self._agent_loop: AgentLoop | None = None
 
     async def run(self) -> None:

@@ -4,8 +4,8 @@ services:
     module: arc.services.runtime.main
     restart: on-failure
 
-  kernel:
-    module: arc.services.kernel.main
-    restart: always
-    depends:
-      - runtime
+#  kernel:
+#    module: arc.services.kernel.main
+#    restart: always
+#    depends:
+#      - runtime

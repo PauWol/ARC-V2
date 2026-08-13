@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
 from dataclasses import dataclass, field
@@ -65,12 +66,20 @@ class Service(ABC):
         version: str,
         description: str = "",
     ) -> None:
-        self.ctx: BaseContext | None = None
+        self.ctx: BaseContext
         self._info = ServiceInfo(
             name=name,
             version=version,
             description=description,
         )
+
+    def _load_context_env(self):
+        """Load the ctx env vars into actual env."""
+        self.ctx.logger.debug(
+            f"Loading environment variables in {self.ctx.service_name}'s context..."
+        )
+        for key, value in self.ctx.env.items():
+            os.environ.setdefault(key, value)
 
     @property
     def info(self) -> ServiceInfo:
@@ -78,6 +87,7 @@ class Service(ABC):
 
     async def start(self, ctx: BaseContext) -> None:
         self.ctx = ctx
+        self._load_context_env()
         await self.run()
 
     @abstractmethod

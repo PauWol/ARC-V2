@@ -12,66 +12,25 @@ from typing import Mapping
 from pydantic import BaseModel, Field
 
 
-class ModelEndpoint(BaseModel):
-    base_url: str
-    model_name: str
-    api_key: str = "not-needed"      # local servers usually ignore this
-    max_context_tokens: int = 8192
-    timeout_s: float = 120.0
-
-
-class ModelTiers(BaseModel):
-    """
-    Three tiers. Triage should be small/fast and can be the SAME server
-    as `main` running the 4B if you don't want a second process — just
-    point both at different model_name / port.
-    """
-    triage: ModelEndpoint = ModelEndpoint(
-        base_url="http://localhost:8001/v1",
-        model_name="qwen3-4b",
-        max_context_tokens=4096,
-    )
-    main: ModelEndpoint = ModelEndpoint(
-        base_url="http://localhost:8000/v1",
-        model_name="qwen3-9b",
-        max_context_tokens=32768,
-    )
-    big: ModelEndpoint = ModelEndpoint(
-        base_url="http://localhost:8002/v1",
-        model_name="qwen3-big",
-        max_context_tokens=65536,
-        timeout_s=600.0,           # give it room, esp. if loaded on-demand
-    )
-
-
 class WakeupConfig(BaseModel):
     # Random/idle wakeups: mean interval in seconds, exponential distribution
-    random_wakeup_mean_s: float = 60 * 45          # ~every 45 min on average
-    random_wakeup_min_s: float = 60 * 10           # never fire more often than this
+    random_wakeup_mean_s: float = 60 * 45  # ~every 45 min on average
+    random_wakeup_min_s: float = 60 * 10  # never fire more often than this
     random_wakeup_enabled: bool = True
 
     # Dream cycle: cron-style, e.g. nightly
-    dream_cron: str = "0 3 * * *"                  # 3am daily (croniter format)
-    dream_min_new_episodes: int = 5                 # skip dreaming if nothing happened
+    dream_cron: str = "0 3 * * *"  # 3am daily (croniter format)
+    dream_min_new_episodes: int = 5  # skip dreaming if nothing happened
 
     # Safety valve: cap self-triggered (non-user-initiated) actions per hour
     max_autonomous_actions_per_hour: int = 12
 
 
-class TelegramConfig(BaseModel):
-    bot_token: str = ""                 # set via env var in practice, not hardcoded
-    primary_chat_id: int = 0             # your chat id — used for autonomous outbound messages
-                                          # (cron/random wakeups have no inbound message to reply to)
-    enabled: bool = False
-
-
 class KernelConfig(BaseModel):
     models: ModelTiers = ModelTiers()
     wakeups: WakeupConfig = WakeupConfig()
-    telegram: TelegramConfig = TelegramConfig()
     db_path: str = "./arc_state.db"
     chroma_path: str = "./arc_chroma"
-    log_path: str = "./arc_kernel.log"
     persona_pinned_facts_limit: int = 20
     context_semantic_recall_k: int = 8
 
