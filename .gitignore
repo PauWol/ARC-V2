@@ -11,5 +11,7 @@ wheels/
 
 
 # End to end test assets
+exe_tests
 
-.exe_tests
+# IDE
+.vscode
