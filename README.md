@@ -1,115 +1,364 @@
+# ARC V2
+
 <div align="center">
 
 <!-- ARC ICON / LOGO SLOT -->
-<!-- Replace this block with your HTML/SVG icon -->
 
-# ARC V2
+<!-- Replace with ARC HTML/SVG icon -->
 
-### A persistent, agent-based assistant architecture.
+### A persistent, agent-based AI system for Linux.
 
-**Local inference · service-oriented · event-driven · built for proactivity**
-
-<br>
+**Local inference · service-oriented · event-driven · persistent by design**
 
 ![Status](https://img.shields.io/badge/status-active%20development-orange)
-![Core](https://img.shields.io/badge/core-boot%20%2B%20service%20foundation-red)
+![Version](https://img.shields.io/badge/version-0.1.0-blue)
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
+![Platform](https://img.shields.io/badge/platform-Linux-lightgrey)
 ![Architecture](https://img.shields.io/badge/architecture-service--oriented-purple)
+![Inference](https://img.shields.io/badge/inference-local%20%2F%20LLM-green)
 ![License](https://img.shields.io/badge/license-TBD-lightgrey)
 
 </div>
 
 ---
 
-## Table of contents
-
-- [ARC V2](#arc-v2)
-    - [A persistent, agent-based assistant architecture.](#a-persistent-agent-based-assistant-architecture)
-  - [Table of contents](#table-of-contents)
-  - [Overview](#overview)
-  - [Current status](#current-status)
-  - [Core architecture](#core-architecture)
-  - [Getting started](#getting-started)
-    - [Requirements](#requirements)
-  - [Documentation](#documentation)
-  - [Contributing](#contributing)
-  - [License](#license)
-
----
-
 ## Overview
 
-ARC V2 is **not** a generic chat agent. It is being built as a **persistent assistant system** with a central kernel, a separate runtime inference backend, and an event-driven service architecture.
+ARC V2 is a **Linux-native AI system designed as an operating environment for a persistent agent**, rather than a conventional request/response chatbot.
 
-The goal is to move beyond simple `prompt → response` behavior and toward an assistant that can **remember, plan, act, react to events, and eventually operate proactively**.
+ARC separates **agent intelligence, model inference, and system capabilities** into independently supervised services.
 
-## Current status
-
-> [!WARNING]
-> ARC V2 is in early development.
->
-> The **core boot path and service foundation** are in place, but the higher-level assistant logic is still being built.
-
-## Core architecture
+The long-term goal is an assistant that can **remember, plan, act, react to events, and operate proactively** within its environment.
 
 ```mermaid
 flowchart LR
-    Boot --> Pulse
-    Pulse --> Services
-    Pulse --> Runtime
-    Pulse --> Kernel
+    A[Boot] --> B[Pulse]
+    B --> C[Kernel]
+    B --> D[Runtime]
+    B --> E[Services]
+
+    C --> D
+    C --> E
+
+    D --> F[Local / Remote Models]
+    E --> G[System Capabilities]
 ```
 
-* **Boot** starts the system
-* **Pulse** supervises services — startup order, readiness, health, and failure recovery
-* **Runtime** handles model inference
-* **Kernel** will coordinate context, planning, memory, and tasks
-* **Services** provide system capabilities, each as an independent process supervised by Pulse
+## Architecture
+
+| Component    | Responsibility                                                             |
+| ------------ | -------------------------------------------------------------------------- |
+| **Boot**     | Initializes ARC and starts the system                                      |
+| **Pulse**    | Supervises service lifecycle, dependencies, readiness, health and recovery |
+| **Kernel**   | Agent orchestration, context, planning, memory and task coordination       |
+| **Runtime**  | Model loading, inference and LLM execution                                 |
+| **Services** | Independent capabilities exposed to the ARC system                         |
 
 > [!NOTE]
-> Runtime and Kernel are themselves implemented as Services under Pulse — see [`docs/SERVICES.md`](./docs/SERVICES.md) for how a service is defined and supervised.
+> **Kernel and Runtime are Services themselves.** Pulse manages them through the same service lifecycle used by other ARC components.
 
-## Getting started
+### Core principle
 
-> [!WARNING]
-> Setup instructions are not finalized yet — ARC V2 is still stabilizing its boot path. This section will be filled in with real install/run steps as that settles. In the meantime:
+> **The Kernel decides what should happen. The Runtime performs model inference. Services provide capabilities. Pulse keeps everything alive.**
 
-### Requirements
+This separation allows ARC to evolve without coupling the agent's reasoning system to a specific model backend or system capability.
 
-| Requirement | Version |
-|---|---|
-| Python | 3.11+ |
+---
 
-<details>
-<summary>Planned setup steps (placeholder — not yet verified)</summary>
+## Why ARC?
 
-```bash
-git clone <repo-url>
-cd arc
-cp .env.example ~/arc/.env   # see docs/CONSTANTS.md for available variables
-# install + run instructions TBD
+Traditional AI applications often follow:
+
+```text
+Input → Prompt → Model → Response
 ```
 
-</details>
+ARC is designed around a persistent system:
+
+```text
+Events
+  ↓
+Services
+  ↓
+Kernel
+  ↓
+Planning / Memory / Tasks
+  ↓
+Runtime
+  ↓
+Model
+```
+
+This makes **continuous operation, event-driven behavior and proactive execution** first-class architectural concepts.
+
+---
+
+## Current Status
+
+> [!WARNING]
+> ARC V2 is in **early active development**. The foundation is functional, while the higher-level agent system is still being built.
+
+| Area                          | Status |
+| ----------------------------- | :----: |
+| Boot foundation               |    ✅   |
+| Service abstraction           |    ✅   |
+| Service registry              |    ✅   |
+| Service lifecycle             |    ✅   |
+| Dependency handling           |    ✅   |
+| Pulse supervision             |    ✅   |
+| Runtime service               |   🚧   |
+| Kernel orchestration          |   🚧   |
+| Persistent memory             |   🧭   |
+| Planning system               |   🧭   |
+| Proactive behavior            |   🧭   |
+| Expanded interaction services |   🧭   |
+
+**Legend:** ✅ Implemented · 🚧 In development · 🧭 Planned
+
+---
+
+## Technology Stack
+
+| Layer                 | Technology                       |
+| --------------------- | -------------------------------- |
+| Language              | Python 3.11+                     |
+| Packaging             | Hatch + `pyproject.toml`         |
+| Environment / tooling | [uv](https://docs.astral.sh/uv/) |
+| CLI                   | Cyclopts                         |
+| API                   | FastAPI + Uvicorn                |
+| LLM runtime           | `llama-cpp-python`               |
+| Model format          | GGUF                             |
+| API compatibility     | OpenAI-compatible interfaces     |
+| Configuration         | YAML + `.env`                    |
+| Scheduling            | Croniter                         |
+| Integrations          | Telegram Bot API                 |
+
+---
+
+## Project Structure
+
+```text
+arc-v2/
+├── src/
+│   └── arc/
+│       ├── boot/
+│       ├── pulse/
+│       ├── kernel/
+│       ├── runtime/
+│       ├── services/
+│       └── cli/
+├── docs/
+├── tests/
+├── pyproject.toml
+├── uv.lock
+└── README.md
+```
+
+> [!NOTE]
+> The exact tree may evolve as ARC's service boundaries stabilize.
+
+---
+
+## Installation
+
+### Prerequisites
+
+* Linux
+* Python 3.11+
+* [`uv`](https://docs.astral.sh/uv/)
+
+### Install uv
+
+Official installer:
+
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+Then verify:
+
+```bash
+uv --version
+```
+
+See the [official uv installation guide](https://docs.astral.sh/uv/getting-started/installation/) for alternative installation methods.
+
+---
+
+## Development
+
+Clone ARC and synchronize the development environment:
+
+```bash
+git clone https://github.com/PauWol/ARC-V2.git
+cd ARC-V2
+
+uv sync
+```
+
+Run ARC through the managed project environment:
+
+```bash
+uv run arc
+```
+
+Run tests:
+
+```bash
+uv run pytest
+```
+
+Run tests with coverage:
+
+```bash
+uv run pytest --cov
+```
+
+`uv sync` creates and maintains the project environment, while `uv run` executes commands against the synchronized environment.
+
+### Editable development
+
+The project is installed editable by default when synchronized, so source changes are reflected without repeatedly reinstalling the package.
+
+---
+
+## Install ARC as a CLI Tool
+
+For using ARC without cloning the repository:
+
+```bash
+uv tool install git+https://github.com/PauWol/ARC-V2.git
+```
+
+Then:
+
+```bash
+arc
+```
+
+To update the installed tool:
+
+```bash
+uv tool upgrade arc
+```
+
+Check installed tools:
+
+```bash
+uv tool list
+```
+
+`uv tool install` installs applications into an isolated environment and exposes their executables through your user tool `PATH`.
+
+> [!TIP]
+> For a one-off execution directly from the repository, `uvx` can run a tool without permanently installing it.
+
+---
+
+## Configuration
+
+ARC uses environment-based configuration, with project-specific configuration documented in:
+
+[`docs/CONSTANTS.md`](./docs/CONSTANTS.md)
+
+Example:
+
+```env
+ARC_DIR=~/arc
+AGENT_WORKSPACE=~/arc/workspace
+LLM_MODEL_STORE=~/arc/models
+```
+
+> [!IMPORTANT]
+> Do not commit secrets or private configuration files to the repository.
+
+---
 
 ## Documentation
 
-Concept docs describe what each part of ARC *is*, its responsibilities, and how it fits into the rest of the system — see [`docs/CONCEPTS.md`](./docs/CONCEPTS.md) for the documentation standard itself.
+| Document                                   | Description                             |
+| ------------------------------------------ | --------------------------------------- |
+| [`docs/CONCEPTS.md`](./docs/CONCEPTS.md)   | Documentation and architecture concepts |
+| [`docs/SERVICES.md`](./docs/SERVICES.md)   | Service model and how to build services |
+| [`docs/CONSTANTS.md`](./docs/CONSTANTS.md) | Environment variables and configuration |
 
-| Concept | Doc | Purpose |
-|---|---|---|
-| Services | [`docs/SERVICES.md`](./docs/SERVICES.md) | How to add your own Service |
-| Environment Variables | [`docs/CONSTANTS.md`](./docs/CONSTANTS.md) | Runtime configuration via `~/arc/.env` |
+Planned documentation:
 
-> [!NOTE]
-> Concept pages reference a few docs that aren't written yet (`PULSE.md`, `RUNTIME.md`, `KERNEL.md`, `ARCHITECTURE.md`, `CONFIGURATION.md`). Add rows here as those land so this table stays the single index.
+`PULSE.md` · `RUNTIME.md` · `KERNEL.md` · `ARCHITECTURE.md` · `CONFIGURATION.md`
+
+---
+
+## Design Principles
+
+**Service-oriented**
+System capabilities are isolated into independently supervised services.
+
+**Persistent**
+ARC is designed to exist continuously rather than only during an individual interaction.
+
+**Event-driven**
+Events can become inputs to the system independently of direct user prompts.
+
+**Inference-independent**
+The Kernel should not depend on a particular model implementation.
+
+**Local-first**
+Local model execution is a first-class runtime target.
+
+**Recoverable**
+Pulse monitors service state and manages lifecycle and recovery.
+
+---
+
+## Roadmap
+
+```mermaid
+flowchart LR
+    A[Foundation] --> B[Agent Core]
+    B --> C[Capabilities]
+    C --> D[Proactivity]
+
+    A1[Boot] --> A
+    A2[Pulse] --> A
+    A3[Services] --> A
+
+    B1[Kernel] --> B
+    B2[Memory] --> B
+    B3[Planning] --> B
+    B4[Tasks] --> B
+
+    C1[Voice] --> C
+    C2[Desktop] --> C
+    C3[Messaging] --> C
+
+    D1[Events] --> D
+    D2[Scheduling] --> D
+    D3[Autonomous Actions] --> D
+```
+
+> [!WARNING]
+> The roadmap describes intended architecture, not guaranteed release timelines.
+
+---
 
 ## Contributing
 
-> [!WARNING]
-> Contribution guidelines aren't written yet. If you'd like to contribute before they land, open an issue first to discuss the change.
+ARC V2 is still establishing its architecture.
+
+Before making large architectural changes, open an issue to discuss the direction. Smaller fixes, tests and documentation improvements are welcome.
+
+---
 
 ## License
 
 > [!WARNING]
-> License not yet chosen — treat this repository as all-rights-reserved until a `LICENSE` file is added.
+> ARC V2 does not currently have a finalized open-source license. Until a `LICENSE` file is present, the repository should be treated as **all rights reserved**.
+
+---
+
+<div align="center">
+
+**ARC V2**
+*Building the operating environment for a persistent AI agent.*
+
+</div>
