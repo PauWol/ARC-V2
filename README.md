@@ -45,7 +45,7 @@ flowchart LR
 
 ---
 
-## Core Architecture
+## Architecture
 
 | Component    | Responsibility                                                             |
 | ------------ | -------------------------------------------------------------------------- |
@@ -55,38 +55,14 @@ flowchart LR
 | **Runtime**  | Model loading, inference and LLM execution                                 |
 | **Services** | Independent capabilities exposed to the ARC system                         |
 
-<details>
-<summary><strong>Architecture details</strong></summary>
+> [!NOTE]
+> **Kernel and Runtime are Services themselves.** Pulse manages them through the same service lifecycle used by other ARC components.
 
-### Boot
+### Core principle
 
-Boot is the entry point into the ARC environment. Its responsibility is to establish the base process and hand control to the service system.
+> **The Kernel decides what should happen. The Runtime performs model inference. Services provide capabilities. Pulse keeps everything alive.**
 
-### Pulse
-
-Pulse is the service supervisor at the center of ARC's runtime architecture.
-
-It manages service startup, dependency ordering, readiness, health state and failure recovery. Services are treated as independently managed runtime units rather than ordinary modules imported into one application process.
-
-### Kernel
-
-The Kernel is the agent layer.
-
-It is responsible for coordinating context, planning, memory, tasks and interactions with available capabilities. The Kernel should remain independent from the implementation details of model inference.
-
-### Runtime
-
-Runtime is responsible for actually executing model inference.
-
-This separation allows ARC's agent architecture to evolve independently of the underlying model runtime or provider.
-
-### Services
-
-Capabilities are exposed through services. A service can represent a system capability, integration or subsystem while remaining independently supervised by Pulse.
-
-> **Kernel decides what should happen. Runtime performs inference. Services provide capabilities. Pulse keeps the system running.**
-
-</details>
+This separation allows ARC to evolve without coupling the agent's reasoning system to a specific model backend or system capability.
 
 ---
 
@@ -129,31 +105,6 @@ Capabilities are exposed through services. A service can represent a system capa
 
 For uv installation and usage, see the [official uv documentation](https://docs.astral.sh/uv/).
 
----
-
-## Project Structure
-
-```text
-arc-v2/
-├── src/
-│   └── arc/
-│       ├── boot/
-│       ├── pulse/
-│       ├── kernel/
-│       ├── runtime/
-│       ├── services/
-│       └── cli/
-├── docs/
-├── tests/
-├── pyproject.toml
-├── uv.lock
-└── README.md
-```
-
-> [!NOTE]
-> The exact structure may evolve as ARC's architecture stabilizes.
-
----
 
 ## Installation
 
@@ -174,11 +125,21 @@ Run ARC:
 uv run arc
 ```
 
+or for dev without rebuilding
+
+```bash
+uv run python -m arc.boot.boot
+```
+
 Run tests:
 
 ```bash
 uv run pytest
 ```
+
+> [!WARNING]
+> Tests are planned but not really enrolled.
+
 
 ### As a CLI Tool
 
