@@ -15,3 +15,6 @@ exe_tests/
 
 # IDE
 .vscode/
+
+# Inspiration / reference code
+inspo_code/
