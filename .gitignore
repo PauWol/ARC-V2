@@ -8,3 +8,8 @@ wheels/
 
 # Virtual environments
 .venv
+
+
+# End to end test assets
+
+.exe_tests
