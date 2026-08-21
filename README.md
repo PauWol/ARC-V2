@@ -31,16 +31,17 @@ The long-term goal is an assistant that can **remember, plan, act, react to even
 
 ```mermaid
 flowchart LR
-    Boot --> Pulse
-    Pulse --> Kernel
-    Pulse --> Runtime
-    Pulse --> Services
+    Boot["Boot"] --> Pulse["Pulse"]
+
+    Pulse --> Kernel["Kernel"]
+    Pulse --> Runtime["Runtime"]
+    Pulse --> Services["Services"]
 
     Kernel --> Runtime
     Kernel --> Services
 
-    Runtime --> Models[LLM Models]
-    Services --> Capabilities[System Capabilities]
+    Runtime --> Models["LLM Models"]
+    Services --> Capabilities["System Capabilities"]
 ```
 
 ---
