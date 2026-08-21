@@ -1,5 +1,4 @@
 import os
-import pwd
 from pathlib import Path
 from typing import TypeVar
 
@@ -12,15 +11,17 @@ def path(p: str | Path) -> Path:
     """Return a Path with '~' expanded reliably."""
     p = Path(p)
 
-    if not p.parts or p.parts[0] != "~":
+    if not str(p).startswith("~/"):
         return p
 
     home = os.environ.get("HOME")
 
     if not home:
-        home = pwd.getpwuid(os.getuid()).pw_dir
+        raise RuntimeError(
+            "Could not determine 'HOME' directory. Please add 'HOME' to env!"
+        )
 
-    return Path(home, *p.parts[1:])
+    return Path(home) / Path(*p.parts[1:])
 
 
 ENV_PATH = path("~/arc/.env")
@@ -123,7 +124,7 @@ DEFAULT_DOT_ENV = {
     # ---
     "EXTRACTOR_INPUT_TOKEN_THRESHOLD": "150",
     # ---
-    "ARC_RUNTIME_MODEL_PATH": "/home/paul/arc/models/unsloth__Qwen3.5-4B-GGUF/Qwen3.5-4B-Q4_K_M.gguf",
+    "ARC_RUNTIME_MODEL_PATH": "~/arc/models/unsloth__Qwen3.5-4B-GGUF/Qwen3.5-4B-Q4_K_M.gguf",
     "ARC_RUNTIME_N_GPU_LAYERS": "auto",
     "ARC_RUNTIME_N_THREADS": "None",
     "ARC_RUNTIME_N_CTX": "4096",
@@ -154,7 +155,7 @@ HF_TOKEN = get_env_str("HF_TOKEN", _DEV["HF_TOKEN"])
 
 # Logging
 LOG_LEVEL = get_env_str("LOG_LEVEL", _DEV["LOG_LEVEL"])
-LOG_FILE = path(get_env("LOG_FILE", _DEV["LOG_FILE"]))
+LOG_FILE = path(get_env_str("LOG_FILE", _DEV["LOG_FILE"]))
 LOG_CONSOLE = get_env_bool("LOG_CONSOLE", _DEV["LOG_CONSOLE"])
 LOG_JSON = get_env_bool("LOG_JSON", _DEV["LOG_JSON"])
 LOG_ROTATE = get_env_bool("LOG_ROTATE", _DEV["LOG_ROTATE"])
