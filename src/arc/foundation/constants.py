@@ -1,4 +1,5 @@
 import os
+import pwd
 from pathlib import Path
 from typing import TypeVar
 
@@ -8,8 +9,18 @@ T = TypeVar("T")
 
 
 def path(p: str | Path) -> Path:
-    """Expand '~' and return a Path."""
-    return Path(p).expanduser()
+    """Return a Path with '~' expanded reliably."""
+    p = Path(p)
+
+    if not p.parts or p.parts[0] != "~":
+        return p
+
+    home = os.environ.get("HOME")
+
+    if not home:
+        home = pwd.getpwuid(os.getuid()).pw_dir
+
+    return Path(home, *p.parts[1:])
 
 
 ENV_PATH = path("~/arc/.env")
@@ -69,19 +80,21 @@ def get_env_float(key: str, default: str) -> float:
 
 def set_env(key: str, value: T):  # pyright: ignore[reportInvalidTypeVarUse]
     _path = ENV_PATH
-    _updated = False
+    _path.parent.mkdir(parents=True, exist_ok=True)
 
-    lines = _path.read_text("utf-8").splitlines()
+    if _path.is_file():
+        lines = _path.read_text("utf-8").splitlines()
+    else:
+        lines = []
 
-    for i, l in enumerate(lines):
-        if l.startswith(f"{key}="):
+    for i, line in enumerate(lines):
+        if line.startswith(f"{key}="):
             lines[i] = f"{key}={value}"
-            _updated = True
-
-    if not _updated:
+            break
+    else:
         lines.append(f"{key}={value}")
 
-    _ = _path.write_text("\n".join(lines) + "\n")
+    _ = _path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 DEFAULT_DOT_ENV = {
@@ -89,6 +102,7 @@ DEFAULT_DOT_ENV = {
     "PYTHONUNBUFFERED": "1",
     "ARC_RUNTIME_PORT": "7842",
     "ARC_RUNTIME_DEBUG": "1",
+    "STRICT_ERRORS": "1",
     # ---
     "ARC_DIR": "~/arc",
     "AGENT_WORKSPACE": "~/arc/workspace",
@@ -97,7 +111,7 @@ DEFAULT_DOT_ENV = {
     "HF_TOKEN": "YOUR-HUGGINGFACE-TOKEN-OPTIONAL",
     # ---
     "LOG_LEVEL": "INFO",
-    "LOG_FILE": "~/arc/workspace/agent.log",
+    "LOG_FILE": "~/arc/workspace/arc.log",
     "LOG_CONSOLE": "1",
     "LOG_JSON": "0",
     "LOG_ROTATE": "1",
@@ -127,6 +141,7 @@ _DEV = DEFAULT_DOT_ENV
 # System
 SERVICES_CONFIG_PATH = Path(__file__).parent.parent / "config" / "services.arc.yaml"
 TERMINAL_NO_COLOR = get_env_bool("TERMINAL_NO_COLOR", _DEV["TERMINAL_NO_COLOR"])
+STRICT_ERRORS = get_env_bool("STRICT_ERRORS", _DEV["STRICT_ERRORS"])
 
 # Project Directories
 ARC_DIR = path(get_env("ARC_DIR", _DEV["ARC_DIR"]))

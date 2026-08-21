@@ -1,8 +1,11 @@
 services:
 
-  runtime:
-    module: arc.services.runtime.main
-    restart: on-failure
+  #runtime:
+   # module: arc.services.runtime.main
+  #  restart: on-failure
+
+  fail_test:
+    module: arc.services.fail_test.main.FailTestService
 
 #  kernel:
 #    module: arc.services.kernel.main
