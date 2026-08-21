@@ -44,8 +44,6 @@ flowchart LR
     Services --> Capabilities["System Capabilities"]
 ```
 
----
-
 ## Architecture
 
 | Component    | Responsibility                                                             |
@@ -65,46 +63,22 @@ flowchart LR
 
 This separation allows ARC to evolve without coupling the agent's reasoning system to a specific model backend or system capability.
 
----
-
 ## Current Status
 
 > [!WARNING]
 > ARC V2 is in **early active development**. The boot and service foundation are functional, while the higher-level agent system is still under development.
 
-| Area                 | Status |
-| -------------------- | :----: |
-| Boot foundation      |    ✅   |
-| Service abstraction  |    ✅   |
-| Service registry     |    ✅   |
-| Service lifecycle    |    ✅   |
-| Dependency handling  |    ✅   |
-| Pulse supervision    |    ✅   |
-| Runtime service      |   🚧   |
-| Kernel orchestration |   🚧   |
-| Persistent memory    |   🧭   |
-| Planning system      |   🧭   |
-| Proactive behavior   |   🧭   |
-
-**Legend:** ✅ Implemented · 🚧 In development · 🧭 Planned
-
----
-
-## Technology
-
-| Category      | Stack                             |
-| ------------- | --------------------------------- |
-| Language      | Python 3.11+                      |
-| Tooling       | uv                                |
-| CLI           | Cyclopts                          |
-| API           | FastAPI / Uvicorn                 |
-| Inference     | llama.cpp / `llama-cpp-python`    |
-| Models        | GGUF                              |
-| Configuration | YAML / `.env`                     |
-| Scheduling    | Croniter                          |
-| Integrations  | Telegram / OpenAI-compatible APIs |
-
-For uv installation and usage, see the [official uv documentation](https://docs.astral.sh/uv/).
+| Area                             |     Status     |
+| -------------------------------- | :------------: |
+| Boot foundation                  |   ✅ Complete   |
+| Service architecture             |   ✅ Complete   |
+| Service lifecycle & dependencies |   ✅ Complete   |
+| Pulse supervision                |   ✅ Complete   |
+| Runtime                          | 🔨 In Progress |
+| Kernel orchestration             | 🔨 In Progress |
+| Persistent memory                |   📋 Planned   |
+| Planning system                  |   📋 Planned   |
+| Proactive behavior               |   📋 Planned   |
 
 
 ## Installation
@@ -164,8 +138,6 @@ uv tool upgrade arc
 
 For complete uv installation, project and tool documentation, see the [uv documentation](https://docs.astral.sh/uv/).
 
----
-
 ## Configuration
 
 ARC uses environment-based configuration.
@@ -185,8 +157,6 @@ LLM_MODEL_STORE=~/arc/models
 > [!IMPORTANT]
 > Do not commit secrets or private configuration files to the repository.
 
----
-
 ## Documentation
 
 ARC uses **concept documents** to describe the architecture and individual parts of the system.
@@ -201,15 +171,11 @@ ARC uses **concept documents** to describe the architecture and individual parts
 
 Additional concept documentation will be added as the corresponding ARC components mature.
 
----
-
 ## Contributing
 
 ARC V2 is still establishing its architecture.
 
 For significant architectural changes, open an issue first to discuss the direction. Documentation, tests and focused improvements are welcome.
-
----
 
 ## License
 
