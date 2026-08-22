@@ -38,6 +38,8 @@ These are the environment variables currently defined by ARC.
 | `TERMINAL_NO_COLOR` |     `0` | Disable terminal colors when enabled |
 | `PYTHONUNBUFFERED`  |     `1` | Run Python output without buffering  |
 | `STRICT_ERRORS` | `1` | Raise startup lifecycle errors instead of continuing with failed services |
+| `WAIT_ON_DEPENDENCIES` | `1` | Wait for service dependencies to become ready before starting dependent services |
+| `MAX_UNHEALTHY_SERVICE_CHECKS` | `3` | Number of consecutive unhealthy checks before a service is considered unhealthy |
 ### Project directories
 
 | Variable          | Default           | Purpose                                |

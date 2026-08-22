@@ -30,6 +30,7 @@ services:
   runtime:
     module: arc.services.runtime.main
     restart: on-failure
+    health: stop
 
   kernel:
     module: arc.services.kernel.main
@@ -43,6 +44,7 @@ services:
 | `module` | Python module containing the `Service` subclass, e.g. `arc.services.runtime.main` → `arc/services/runtime/main.py`. Pulse auto-discovers the subclass inside it. |
 | `restart` | Restart policy — see table below. |
 | `depends` | List of services that must be started and become **ready** first. Services at the same dependency level start concurrently. |
+| `health` | Action to take when the service reports unhealthy for `MAX_UNHEALTHY_SERVICE_CHECKS` consecutive health checks — see table below.
 
 **`restart` policies:**
 
@@ -51,6 +53,15 @@ services:
 | `always` | Restart whenever the service exits. |
 | `on-failure` | Restart only after a crash or failure. |
 | `never` | Never restart automatically. |
+
+**`health` policies:**
+
+| Value     | Description                                                                                            |
+| --------- | ------------------------------------------------------------------------------------------------------ |
+| `ignore`  | Log the unhealthy state but leave the service running.                                                 |
+| `restart` | Restart the service after it has been unhealthy for `MAX_UNHEALTHY_SERVICE_CHECKS` consecutive checks. |
+| `stop`    | Stop the service after it has been unhealthy for `MAX_UNHEALTHY_SERVICE_CHECKS` consecutive checks.    |
+
 
 ### Lifecycle methods
 

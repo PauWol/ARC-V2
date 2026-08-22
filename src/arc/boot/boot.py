@@ -32,6 +32,3 @@ if __name__ == "__main__":
         asyncio.run(main())
     except KeyboardInterrupt:
         pass
-
-
-# Todo: Add a startup config way to set policies and model etc.

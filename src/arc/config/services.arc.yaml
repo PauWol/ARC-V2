@@ -3,6 +3,7 @@ services:
   runtime:
     module: arc.services.runtime.main
     restart: on-failure
+    health: stop
 
 # Uncomment this for testing the STRICT_ERRORS functionality
 #  fail_test:

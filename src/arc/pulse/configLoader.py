@@ -1,10 +1,10 @@
-import yaml
 import logging
-
 from pathlib import Path
 
+import yaml
+
 from arc.foundation.constants import SERVICES_CONFIG_PATH
-from arc.foundation.service import ServiceConfig, ServiceTree, ServiceNode
+from arc.foundation.service import ServiceConfig, ServiceNode, ServiceTree
 
 logger = logging.getLogger(__name__)
 
@@ -38,16 +38,17 @@ class ConfigLoader:
     def load(self) -> dict[str, ServiceConfig]:
         """Load the Service-Configurations"""
         with self.locate().open("r", encoding="utf-8") as f:
-            data = yaml.safe_load(f)  # pyright: ignore[reportAny]
+            data = yaml.safe_load(f)
 
         services: dict[str, ServiceConfig] = {}
 
-        for name, cfg in data.get("services", {}).items():  # pyright: ignore[reportAny]
+        for name, cfg in data.get("services", {}).items():
             services[name] = ServiceConfig(
-                name=name,  # pyright: ignore[reportAny]
-                module=cfg["module"],  # pyright: ignore[reportAny]
-                restart=cfg.get("restart", "never"),  # pyright: ignore[reportAny]
-                depends_on=cfg.get("depends", []),  # pyright: ignore[reportAny]
+                name=name,
+                module=cfg["module"],
+                restart=cfg.get("restart", "never"),
+                health=cfg.get("health", "ignore"),
+                depends_on=cfg.get("depends", []),
             )
 
         return services

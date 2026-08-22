@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "arc-v2"
-version = "0.1.0"
+version = "0.2.0"
 description = "A Linux-native AI system inspired by operating system architecture, built to give an intelligent agent unified access to system capabilities."
 readme = "README.md"
 requires-python = ">=3.11"

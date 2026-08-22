@@ -104,6 +104,8 @@ DEFAULT_DOT_ENV = {
     "ARC_RUNTIME_PORT": "7842",
     "ARC_RUNTIME_DEBUG": "1",
     "STRICT_ERRORS": "1",
+    "WAIT_ON_DEPENDENCIES": "1",
+    "MAX_UNHEALTHY_SERVICE_CHECKS": "3",
     # ---
     "ARC_DIR": "~/arc",
     "AGENT_WORKSPACE": "~/arc/workspace",
@@ -143,7 +145,12 @@ _DEV = DEFAULT_DOT_ENV
 SERVICES_CONFIG_PATH = Path(__file__).parent.parent / "config" / "services.arc.yaml"
 TERMINAL_NO_COLOR = get_env_bool("TERMINAL_NO_COLOR", _DEV["TERMINAL_NO_COLOR"])
 STRICT_ERRORS = get_env_bool("STRICT_ERRORS", _DEV["STRICT_ERRORS"])
-
+WAIT_ON_DEPENDENCIES = get_env_bool(
+    "WAIT_ON_DEPENDENCIES", _DEV["WAIT_ON_DEPENDENCIES"]
+)
+MAX_UNHEALTHY_SERVICE_CHECKS = get_env_int(
+    "MAX_UNHEALTHY_SERVICE_CHECKS", _DEV["MAX_UNHEALTHY_SERVICE_CHECKS"]
+)
 # Project Directories
 ARC_DIR = path(get_env("ARC_DIR", _DEV["ARC_DIR"]))
 AGENT_WORKSPACE = path(get_env("AGENT_WORKSPACE", _DEV["AGENT_WORKSPACE"]))

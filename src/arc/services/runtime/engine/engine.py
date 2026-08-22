@@ -54,7 +54,7 @@ from arc.services.runtime.engine.parsing import ParsedEvent, StreamParser
 from arc.services.runtime.engine.queue import RequestQueue
 from arc.services.runtime.engine.sampling import build_sampling_kwargs
 from arc.services.runtime.engine.templating import ChatTemplateRenderer
-from src.arc.services.runtime.shared.types import ChatRequest, CompletionRequest
+from arc.services.runtime.shared.types import ChatRequest, CompletionRequest
 
 logger = logging.getLogger(__name__)
 

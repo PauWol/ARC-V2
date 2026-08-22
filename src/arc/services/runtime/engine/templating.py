@@ -15,7 +15,7 @@ from typing import Any
 
 import jinja2
 
-from src.arc.services.runtime.shared.types import ChatMessage, Tool
+from arc.services.runtime.shared.types import ChatMessage, Tool
 
 _FALLBACK_TEMPLATE = """\
 {%- if tools %}

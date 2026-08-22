@@ -10,8 +10,7 @@ from logging import Logger
 from typing import TYPE_CHECKING, TypeAlias
 
 if TYPE_CHECKING:
-    # Only needed for type checking -- avoids a hard import cycle, since
-    # service_process.py has no reason to import this module.
+    # Used to prevent an hard import cycle
     from arc.foundation.service_process import ServiceProcess
 
 
@@ -20,6 +19,7 @@ class ServiceConfig:
     name: str
     module: str
     restart: str = "never"
+    health: str = "ignore"
     depends_on: list[str] = field(default_factory=list)
 
 

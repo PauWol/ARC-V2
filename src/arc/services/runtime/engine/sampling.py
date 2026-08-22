@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from src.arc.services.runtime.shared.types import GenerationRequest
+from arc.services.runtime.shared.types import GenerationRequest
 
 
 def build_sampling_kwargs(req: GenerationRequest) -> dict[str, Any]:
